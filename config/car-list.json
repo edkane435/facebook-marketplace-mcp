@@ -1,0 +1,55 @@
+{
+  "location": {
+    "label": "West Chester, PA 19382",
+    "latitude": 39.9601,
+    "longitude": -75.6058,
+    "radius_km": 100
+  },
+  "vehicles": [
+    {
+      "monitor": "yukon",
+      "query": "GMC Yukon",
+      "class": "Full-size SUV"
+    },
+    {
+      "monitor": "tahoe",
+      "query": "Chevrolet Tahoe",
+      "class": "Full-size SUV"
+    },
+    {
+      "monitor": "telluride",
+      "query": "Kia Telluride",
+      "class": "Midsize 3-row crossover"
+    },
+    {
+      "monitor": "palisade",
+      "query": "Hyundai Palisade",
+      "class": "Midsize 3-row crossover"
+    },
+    {
+      "monitor": "pilot",
+      "query": "Honda Pilot",
+      "class": "Midsize 3-row crossover"
+    },
+    {
+      "monitor": "highlander",
+      "query": "Toyota Highlander",
+      "class": "Midsize 3-row crossover"
+    },
+    {
+      "monitor": "atlas",
+      "query": "Volkswagen Atlas",
+      "class": "Midsize 3-row crossover"
+    },
+    {
+      "monitor": "f150",
+      "query": "Ford F-150",
+      "class": "Truck"
+    },
+    {
+      "monitor": "ram1500",
+      "query": "Ram 1500",
+      "class": "Truck"
+    }
+  ]
+}

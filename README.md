@@ -94,6 +94,15 @@ List all saved monitors.
 ### `delete_monitor`
 Delete a saved monitor.
 
+## Personal Car Shopping List
+
+`npm run seed-car-list` pre-creates monitors for a specific vehicle
+shortlist (see `config/car-list.json`) instead of calling `monitor_search`
+by hand for each one. Ask your agent to check the monitors periodically and
+value any new hit against KBB/Edmunds before reaching out — see
+[`docs/car-list.md`](docs/car-list.md) for the target vehicles, area, and
+what counts as a good deal.
+
 ## Configuration
 
 | Env Variable | Default | Description |
