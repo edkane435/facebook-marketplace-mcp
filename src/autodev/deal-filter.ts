@@ -9,7 +9,7 @@ export interface DealFilterOptions {
 }
 
 export const DEFAULT_DEAL_FILTER: DealFilterOptions = {
-  minMileage: 1, // excludes literal 0-mile new-dealer-stock, not much else
+  minMileage: 0,
   maxMileage: 20000,
   discountPct: 0.1,
 };
@@ -34,6 +34,7 @@ export function filterToGoodDeals(
 ): AutoDevListing[] {
   const candidates = listings.filter(
     (l) =>
+      l.used &&
       l.mileageValue != null &&
       l.mileageValue >= options.minMileage &&
       l.mileageValue <= options.maxMileage &&

@@ -1,7 +1,10 @@
 // Auto.dev's Vehicle Listings API (docs.auto.dev/v2/products/vehicle-listings).
-// Field names for the nested `retailListing` object are a best-effort read of
-// public docs/examples, not a verified schema — check a live response and
-// adjust the mapping below if a field comes back empty.
+// Confirmed field names from a live response's retailListing object:
+// carfaxUrl, city, cpo, dealer, miles, photoCount, price, primaryImage,
+// state, used, vdp, zip, dealerId. vehicle object: baseInvoice, baseMsrp,
+// bodyStyle, confidence, cylinders, doors, drivetrain, engine,
+// exteriorColor, fuel, interiorColor, make, model, seats, series,
+// squishVin, style, transmission, trim, type, vin, year.
 const LISTINGS_URL = "https://api.auto.dev/listings";
 
 export interface AutoDevListing {
@@ -14,6 +17,8 @@ export interface AutoDevListing {
   location: string;
   dealer: string;
   url: string;
+  used: boolean;
+  cpo: boolean;
 }
 
 export interface AutoDevSearchParams {
@@ -33,13 +38,6 @@ export async function searchAutoDevListings(
   url.searchParams.set("zip", params.zip);
   url.searchParams.set("distance", String(params.distanceMiles));
 
-  // Deliberately not sending a server-side mileage filter param — an
-  // earlier attempt (retailListing.mileage=min-max) made every monitor
-  // return zero results, which most likely means that param name is wrong
-  // and Auto.dev is matching it against a nonexistent field rather than
-  // ignoring it. Filtering happens entirely client-side instead (see
-  // mileageValue below and src/autodev/deal-filter.ts).
-
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${params.apiKey}` },
   });
@@ -54,18 +52,6 @@ export async function searchAutoDevListings(
   const json = (await res.json()) as { data?: unknown[] };
   const rows = Array.isArray(json.data) ? json.data : [];
 
-  if (rows.length > 0) {
-    const sample = rows[0] as Record<string, any>;
-    console.log(
-      "[auto.dev] retailListing keys:",
-      Object.keys(sample.retailListing ?? {}).join(", ")
-    );
-    console.log(
-      "[auto.dev] vehicle keys:",
-      Object.keys(sample.vehicle ?? {}).join(", ")
-    );
-  }
-
   return rows.map((row) => {
     const r = row as Record<string, any>;
     const vehicle = r.vehicle ?? {};
@@ -75,14 +61,10 @@ export async function searchAutoDevListings(
       .filter(Boolean)
       .join(" ");
 
-    const rawPrice = listing.price;
-    const priceValue = rawPrice != null ? Number(rawPrice) : null;
+    const priceValue = listing.price != null ? Number(listing.price) : null;
     const price = priceValue != null ? `$${priceValue.toLocaleString()}` : "N/A";
 
-    // Best-effort field name guesses — mileage came back N/A on the first
-    // real run, so "mileage" alone isn't it. Trying likely alternates.
-    const rawMileage = listing.mileage ?? listing.odometer ?? listing.miles;
-    const mileageValue = rawMileage != null ? Number(rawMileage) : null;
+    const mileageValue = listing.miles != null ? Number(listing.miles) : null;
     const mileage =
       mileageValue != null ? `${mileageValue.toLocaleString()} mi` : "N/A";
 
@@ -90,17 +72,17 @@ export async function searchAutoDevListings(
       [listing.city, listing.state].filter(Boolean).join(", ") || "Unknown";
     const vin = vehicle.vin ?? r.vin ?? "";
 
-    // Best-effort guess at whichever field holds the clickout/detail link —
-    // none of these are confirmed against a real response yet. Falls back to
-    // a VIN search rather than inventing a URL pattern that 404s.
-    const listingUrl =
-      listing.vdpUrl ??
-      listing.clickoutUrl ??
-      listing.listingUrl ??
-      listing.detailUrl ??
-      listing.link ??
-      listing.url ??
-      (vin ? `https://www.google.com/search?q=${encodeURIComponent(vin)}` : "");
+    // "vdp" (vehicle detail page) is the confirmed field, but its exact
+    // format (full URL vs relative path) hasn't been seen directly since
+    // it was empty on the monitors checked so far — handling both.
+    const rawVdp: string | undefined = listing.vdp;
+    const listingUrl = rawVdp
+      ? rawVdp.startsWith("http")
+        ? rawVdp
+        : `https://www.auto.dev${rawVdp.startsWith("/") ? "" : "/"}${rawVdp}`
+      : vin
+        ? `https://www.google.com/search?q=${encodeURIComponent(vin)}`
+        : "";
 
     return {
       vin,
@@ -110,8 +92,10 @@ export async function searchAutoDevListings(
       mileage,
       mileageValue,
       location,
-      dealer: listing.dealerName ?? listing.dealer ?? "Unknown",
+      dealer: listing.dealer ?? "Unknown",
       url: listingUrl,
+      used: listing.used === true,
+      cpo: listing.cpo === true,
     };
   });
 }
