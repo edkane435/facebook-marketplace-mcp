@@ -72,20 +72,15 @@ export async function searchAutoDevListings(
       [listing.city, listing.state].filter(Boolean).join(", ") || "Unknown";
     const vin = vehicle.vin ?? r.vin ?? "";
 
-    // "vdp" (vehicle detail page) is the confirmed field, but its content
-    // varies by dealer/syndication source: sometimes a real absolute URL
-    // (e.g. a vast.com listing link), sometimes just a bare fragment like
-    // "#8976334387555541905" that only means something inside Auto.dev's
-    // own site state and 404s/goes nowhere as a standalone link. Only trust
-    // it when it's already a genuine absolute URL; otherwise fall back to
-    // a VIN search rather than gluing a non-URL fragment onto a domain.
-    const rawVdp: string | undefined = listing.vdp;
-    const listingUrl =
-      rawVdp && rawVdp.startsWith("http")
-        ? rawVdp
-        : vin
-          ? `https://www.google.com/search?q=${encodeURIComponent(vin)}`
-          : "";
+    // "vdp" turned out unreliable both ways: sometimes a bare fragment
+    // ("#8976334387555541905") that goes nowhere, and even when it's a real
+    // absolute URL (a vast.com syndication link), it can point to a dealer
+    // feed host that's down or an expired token. A VIN search reliably
+    // surfaces the listing on major sites that actually work, so that's
+    // the link every Auto.dev result gets — not worth gambling on vdp.
+    const listingUrl = vin
+      ? `https://www.google.com/search?q=${encodeURIComponent(vin)}`
+      : "";
 
     return {
       vin,
