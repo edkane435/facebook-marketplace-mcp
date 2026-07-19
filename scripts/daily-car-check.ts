@@ -21,6 +21,7 @@ import {
 } from "../src/autodev/deal-filter.js";
 import { appendFoundCars } from "../src/storage/found-cars.js";
 import { loadEmailConfigFromEnv, sendDigestEmail } from "../src/email/send.js";
+import { acquireLock, releaseLock } from "../src/utils/lock.js";
 import type { MarketplaceListing } from "../src/facebook/types.js";
 
 async function runFacebookChecks(): Promise<Map<string, MarketplaceListing[]>> {
@@ -147,6 +148,16 @@ function formatDigest(newByMonitor: Map<string, MarketplaceListing[]>): string {
 }
 
 async function main() {
+  if (!acquireLock()) {
+    console.log(
+      "Another daily-check run appears to still be in progress (lock file " +
+        "younger than 15 min) — skipping this run rather than racing on the " +
+        "same monitor state files. If you're sure nothing else is running, " +
+        "this is a stale lock and will clear itself on the next attempt."
+    );
+    return;
+  }
+
   const emailConfig = loadEmailConfigFromEnv();
 
   try {
@@ -196,6 +207,8 @@ async function main() {
     }
 
     process.exitCode = 1;
+  } finally {
+    releaseLock();
   }
 }
 
