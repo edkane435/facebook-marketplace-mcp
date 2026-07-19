@@ -17,6 +17,7 @@ export interface AutoDevListing {
   location: string;
   dealer: string;
   url: string;
+  carfaxUrl: string;
   used: boolean;
   cpo: boolean;
 }
@@ -92,6 +93,9 @@ export async function searchAutoDevListings(
       location,
       dealer: listing.dealer ?? "Unknown",
       url: listingUrl,
+      // Confirmed real field, and a stable major site (Carfax) unlike vdp's
+      // small-dealer syndication links — a useful second, reliable link.
+      carfaxUrl: listing.carfaxUrl ?? "",
       used: listing.used === true,
       cpo: listing.cpo === true,
     };

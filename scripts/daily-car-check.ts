@@ -105,7 +105,7 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
         imageUrl: "",
         sellerName: l.dealer,
         postedDate: "",
-        url: l.url,
+        url: l.carfaxUrl ? `${l.url}\n  Carfax: ${l.carfaxUrl}` : l.url,
         isPending: false,
       }));
 
