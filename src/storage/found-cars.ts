@@ -1,10 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import type { MarketplaceListing } from "../facebook/types.js";
+import { getStorageDir } from "./storage-dir.js";
 
-const STORAGE_DIR = path.join(os.homedir(), ".fb-marketplace");
-const CARS_FILE = path.join(STORAGE_DIR, "cars.csv");
+function getCarsFile(): string {
+  return path.join(getStorageDir(), "cars.csv");
+}
 
 const COLUMNS = [
   "monitor",
@@ -29,8 +30,9 @@ export interface FoundCar {
 }
 
 function ensureStorageDir() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  const dir = getStorageDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
@@ -77,7 +79,8 @@ export function appendFoundCars(
 ): void {
   ensureStorageDir();
 
-  const isNewFile = !fs.existsSync(CARS_FILE);
+  const carsFile = getCarsFile();
+  const isNewFile = !fs.existsSync(carsFile);
   const dateFound = new Date().toISOString();
 
   const lines: string[] = [];
@@ -102,15 +105,16 @@ export function appendFoundCars(
     );
   }
 
-  fs.appendFileSync(CARS_FILE, lines.join("\n") + "\n");
+  fs.appendFileSync(carsFile, lines.join("\n") + "\n");
 }
 
 export function loadFoundCars(monitorName?: string): FoundCar[] {
-  if (!fs.existsSync(CARS_FILE)) {
+  const carsFile = getCarsFile();
+  if (!fs.existsSync(carsFile)) {
     return [];
   }
 
-  const raw = fs.readFileSync(CARS_FILE, "utf-8").trim();
+  const raw = fs.readFileSync(carsFile, "utf-8").trim();
   if (!raw) return [];
 
   const [, ...rows] = raw.split("\n");
@@ -124,5 +128,5 @@ export function loadFoundCars(monitorName?: string): FoundCar[] {
 }
 
 export function foundCarsFilePath(): string {
-  return CARS_FILE;
+  return getCarsFile();
 }

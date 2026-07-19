@@ -1,25 +1,28 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import crypto from "node:crypto";
 import type { SavedMonitor, SearchParams } from "../facebook/types.js";
+import { getStorageDir } from "./storage-dir.js";
 
-const STORAGE_DIR = path.join(os.homedir(), ".fb-marketplace");
-const MONITORS_FILE = path.join(STORAGE_DIR, "monitors.json");
+function getMonitorsFile(): string {
+  return path.join(getStorageDir(), "monitors.json");
+}
 
 function ensureStorageDir() {
-  if (!fs.existsSync(STORAGE_DIR)) {
-    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  const dir = getStorageDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 export function loadMonitors(): SavedMonitor[] {
   ensureStorageDir();
-  if (!fs.existsSync(MONITORS_FILE)) {
+  const monitorsFile = getMonitorsFile();
+  if (!fs.existsSync(monitorsFile)) {
     return [];
   }
   try {
-    const data = fs.readFileSync(MONITORS_FILE, "utf-8");
+    const data = fs.readFileSync(monitorsFile, "utf-8");
     return JSON.parse(data);
   } catch {
     return [];
@@ -28,7 +31,7 @@ export function loadMonitors(): SavedMonitor[] {
 
 export function saveMonitors(monitors: SavedMonitor[]) {
   ensureStorageDir();
-  fs.writeFileSync(MONITORS_FILE, JSON.stringify(monitors, null, 2));
+  fs.writeFileSync(getMonitorsFile(), JSON.stringify(monitors, null, 2));
 }
 
 export function addMonitor(

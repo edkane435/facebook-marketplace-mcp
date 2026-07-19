@@ -135,12 +135,39 @@ If `SMTP_*` isn't set, it just prints the digest to stdout instead of
 emailing. If the check itself fails (most likely an expired cookie), it
 emails an alert saying so instead of failing silently.
 
+### Deploying to Railway
+
+`railway.json` is already set up to run `seed-car-list` (idempotent — safe
+to run every time) then `daily-check` on each fire, with
+`restartPolicyType: NEVER` so a clean exit doesn't loop-restart it.
+
+1. **New Project → Deploy from GitHub repo**, pick this repo/branch.
+2. **Add a Volume** to the service (any mount path, e.g. `/data`) —
+   without one, `monitors.json`/`cars.csv` get wiped on every redeploy and
+   every listing looks "new" again.
+3. **Variables tab**, set:
+   - `FB_COOKIE_HEADER`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `EMAIL_TO` (same
+     as the `.env` values above — set as real env vars here instead, no
+     `.env` file needed on Railway)
+   - `FB_MARKETPLACE_HOME` = the volume's mount path (e.g. `/data`), so
+     persisted state lands on the volume instead of the ephemeral
+     container filesystem
+4. **Settings → Cron Schedule**, set how often to run (e.g. once daily).
+   Railway only starts the container on each fire and lets it exit — it's
+   not an always-on service.
+
+If the build fails on `better-sqlite3` (a native module, only actually
+used by the Chrome/Keychain path this deployment doesn't touch), that's a
+missing build toolchain in the Nixpacks image — worth flagging if it comes
+up, but Railway's default Node builder normally includes what it needs.
+
 ## Configuration
 
 | Env Variable | Default | Description |
 |-------------|---------|-------------|
 | `CHROME_PROFILE` | `Default` | Chrome profile directory name |
 | `FB_COOKIE_HEADER` | — | Manual Facebook cookie header, bypasses Chrome/Keychain extraction when set |
+| `FB_MARKETPLACE_HOME` | `~/.fb-marketplace` | Where monitors/found-cars state is stored — point this at a mounted volume on hosts with an ephemeral filesystem |
 | `SMTP_USER` / `SMTP_APP_PASSWORD` / `EMAIL_TO` | — | Gmail SMTP credentials for `daily-check`'s digest email |
 
 ## Updating GraphQL Queries
