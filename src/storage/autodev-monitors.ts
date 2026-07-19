@@ -73,3 +73,14 @@ export function updateAutoDevMonitorSeenVins(name: string, newVins: string[]): v
   monitor.lastChecked = new Date().toISOString();
   saveAutoDevMonitors(monitors);
 }
+
+// Clears seenVins on every saved monitor (keeps the monitors themselves —
+// make/model/zip/distance — intact) so the next check reports everything
+// currently matching as "new", as if running for the first time.
+export function resetAllSeenVins(): void {
+  const monitors = loadAutoDevMonitors();
+  for (const monitor of monitors) {
+    monitor.seenVins = [];
+  }
+  saveAutoDevMonitors(monitors);
+}

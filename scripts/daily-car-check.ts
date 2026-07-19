@@ -13,6 +13,7 @@ import { loadMonitors, updateMonitorSeenIds } from "../src/storage/monitors.js";
 import {
   loadAutoDevMonitors,
   updateAutoDevMonitorSeenVins,
+  resetAllSeenVins,
 } from "../src/storage/autodev-monitors.js";
 import { searchAutoDevListings } from "../src/autodev/client.js";
 import { filterToGoodDeals } from "../src/autodev/deal-filter.js";
@@ -165,6 +166,15 @@ async function main() {
         "this is a stale lock and will clear itself on the next attempt."
     );
     return;
+  }
+
+  if (process.env.RESET_AUTODEV_SEEN === "true") {
+    resetAllSeenVins();
+    console.log(
+      "RESET_AUTODEV_SEEN=true — cleared seen-state, every current match " +
+        "will report as new this run. Remove this variable after one run " +
+        "or it'll reset every time and you'll get full results daily."
+    );
   }
 
   const emailConfig = loadEmailConfigFromEnv();
