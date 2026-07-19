@@ -153,11 +153,27 @@ If `RESEND_API_KEY`/`EMAIL_TO` aren't set, it just prints the digest to
 stdout instead of emailing. If the check itself fails (most likely an
 expired cookie), it emails an alert saying so instead of failing silently.
 
+### Web UI (`npm run serve`)
+
+`src/web/server.ts` is a small always-on server that does two things in one
+process: serves a mobile-friendly page listing everything in `cars.csv`
+(newest first, with working links), and runs the same daily check
+internally on its own schedule — no MCP client, no Railway Cron Schedule
+needed. One process, one shared volume, nothing to keep in sync across
+services.
+
+- `GET /` — the car list page
+- `GET /health` — plain `200 ok`, for platform health checks
+- `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` (optional, default
+  `13`/`0` — i.e. 9am Eastern during daylight saving) — when the internal
+  scheduler fires the check once a day
+
 ### Deploying to Railway
 
-`railway.json` is already set up to run `seed-car-list` (idempotent — safe
-to run every time) then `daily-check` on each fire, with
-`restartPolicyType: NEVER` so a clean exit doesn't loop-restart it.
+`railway.json` runs `seed-car-list` (idempotent — safe every time, and
+prunes monitors no longer in `config/car-list.json`) then `npm run serve`
+on deploy, with `restartPolicyType: ON_FAILURE` so Railway restarts it if
+it ever crashes — this is a persistent service, not a one-shot job.
 
 1. **New Project → Deploy from GitHub repo**, pick this repo/branch.
 2. **Add a Volume** to the service (any mount path, e.g. `/data`) —
@@ -166,14 +182,17 @@ to run every time) then `daily-check` on each fire, with
 3. **Variables tab**, set:
    - `FB_COOKIE_HEADER`, `RESEND_API_KEY`, `EMAIL_TO` (same as the `.env`
      values above — set as real env vars here instead, no `.env` file
-     needed on Railway)
+     needed on Railway). Omit `FB_COOKIE_HEADER` and set `SKIP_FACEBOOK=true`
+     to run Auto.dev-only.
    - `AUTODEV_API_KEY` (optional — omit to skip the Auto.dev source)
    - `FB_MARKETPLACE_HOME` = the volume's mount path (e.g. `/data`), so
      persisted state lands on the volume instead of the ephemeral
      container filesystem
-4. **Settings → Cron Schedule**, set how often to run (e.g. once daily).
-   Railway only starts the container on each fire and lets it exit — it's
-   not an always-on service.
+4. Railway should auto-detect the listening port (from `$PORT`) and treat
+   this as a normal web service, giving it a public URL — bookmark that on
+   your phone/iPad for the car list page. **No Cron Schedule needed** —
+   remove it if one's still configured from an earlier setup, since
+   scheduling now happens inside the server process itself.
 
 If the build fails on `better-sqlite3` (a native module, only actually
 used by the Chrome/Keychain path this deployment doesn't touch), that's a
@@ -189,6 +208,11 @@ up, but Railway's default Node builder normally includes what it needs.
 | `FB_MARKETPLACE_HOME` | `~/.fb-marketplace` | Where monitors/found-cars state is stored — point this at a mounted volume on hosts with an ephemeral filesystem |
 | `AUTODEV_API_KEY` | — | Auto.dev Vehicle Listings API key — optional second data source, skipped entirely if unset |
 | `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
+| `SKIP_FACEBOOK` | — | Set to `true` to skip the Facebook check entirely (Auto.dev-only) |
+| `MAX_MONITORS` | — | Testing knob — only check the first N monitors of each source |
+| `RESET_AUTODEV_SEEN` | — | Set to `true` for one run to clear Auto.dev seen-state (remove after) |
+| `PORT` | `3000` | Port `npm run serve` listens on (Railway sets this automatically) |
+| `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` | `13` / `0` | When `npm run serve`'s internal scheduler fires the daily check |
 
 ## Updating GraphQL Queries
 

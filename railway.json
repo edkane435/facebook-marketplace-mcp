@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npm run seed-car-list && npm run daily-check",
-    "restartPolicyType": "NEVER"
+    "startCommand": "npm run seed-car-list && npm run serve",
+    "restartPolicyType": "ON_FAILURE"
   }
 }
