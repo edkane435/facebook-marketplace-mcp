@@ -33,9 +33,15 @@ function applyMonitorLimit<T>(monitors: T[]): T[] {
 }
 
 async function runFacebookChecks(): Promise<Map<string, MarketplaceListing[]>> {
+  const newByMonitor = new Map<string, MarketplaceListing[]>();
+
+  if (process.env.SKIP_FACEBOOK === "true") {
+    console.log("SKIP_FACEBOOK=true — skipping Facebook check.");
+    return newByMonitor;
+  }
+
   const client = new FacebookClient({ maxRequestsPerMinute: 3 });
   const monitors = applyMonitorLimit(loadMonitors());
-  const newByMonitor = new Map<string, MarketplaceListing[]>();
 
   if (monitors.length === 0) {
     console.log("No Facebook monitors saved — skipping Facebook check.");
