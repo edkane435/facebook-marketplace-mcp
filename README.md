@@ -127,13 +127,16 @@ file (copy `.env.example`) with:
   DevTools (Network tab → any facebook.com request → `cookie` request
   header), used instead of Keychain extraction. It expires periodically;
   when the daily check starts failing, grab a fresh one.
-- `SMTP_USER` / `SMTP_APP_PASSWORD` / `EMAIL_TO` — Gmail SMTP credentials
-  (an [App Password](https://myaccount.google.com/apppasswords), not your
-  normal password) for sending the digest.
+- `RESEND_API_KEY` / `EMAIL_TO` — sends the digest via
+  [Resend](https://resend.com)'s HTTP API rather than raw SMTP. This
+  matters on most cloud hosts (Railway included): outbound SMTP ports are
+  blocked by default as an anti-spam measure, so an SMTP-based sender just
+  hangs and times out there regardless of correct credentials — an HTTP
+  API on port 443 sidesteps that entirely.
 
-If `SMTP_*` isn't set, it just prints the digest to stdout instead of
-emailing. If the check itself fails (most likely an expired cookie), it
-emails an alert saying so instead of failing silently.
+If `RESEND_API_KEY`/`EMAIL_TO` aren't set, it just prints the digest to
+stdout instead of emailing. If the check itself fails (most likely an
+expired cookie), it emails an alert saying so instead of failing silently.
 
 ### Deploying to Railway
 
@@ -146,9 +149,9 @@ to run every time) then `daily-check` on each fire, with
    without one, `monitors.json`/`cars.csv` get wiped on every redeploy and
    every listing looks "new" again.
 3. **Variables tab**, set:
-   - `FB_COOKIE_HEADER`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `EMAIL_TO` (same
-     as the `.env` values above — set as real env vars here instead, no
-     `.env` file needed on Railway)
+   - `FB_COOKIE_HEADER`, `RESEND_API_KEY`, `EMAIL_TO` (same as the `.env`
+     values above — set as real env vars here instead, no `.env` file
+     needed on Railway)
    - `FB_MARKETPLACE_HOME` = the volume's mount path (e.g. `/data`), so
      persisted state lands on the volume instead of the ephemeral
      container filesystem
@@ -168,7 +171,7 @@ up, but Railway's default Node builder normally includes what it needs.
 | `CHROME_PROFILE` | `Default` | Chrome profile directory name |
 | `FB_COOKIE_HEADER` | — | Manual Facebook cookie header, bypasses Chrome/Keychain extraction when set |
 | `FB_MARKETPLACE_HOME` | `~/.fb-marketplace` | Where monitors/found-cars state is stored — point this at a mounted volume on hosts with an ephemeral filesystem |
-| `SMTP_USER` / `SMTP_APP_PASSWORD` / `EMAIL_TO` | — | Gmail SMTP credentials for `daily-check`'s digest email |
+| `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
 
 ## Updating GraphQL Queries
 
