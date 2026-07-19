@@ -24,9 +24,20 @@ import { loadEmailConfigFromEnv, sendDigestEmail } from "../src/email/send.js";
 import { acquireLock, releaseLock } from "../src/utils/lock.js";
 import type { MarketplaceListing } from "../src/facebook/types.js";
 
+// Temporary knob for testing — set MAX_MONITORS to check only the first N
+// monitors of each source instead of the full list, so a debug run finishes
+// in under a minute instead of several. Unset (or remove the var) to go
+// back to checking everything.
+function applyMonitorLimit<T>(monitors: T[]): T[] {
+  const limit = process.env.MAX_MONITORS
+    ? parseInt(process.env.MAX_MONITORS, 10)
+    : null;
+  return limit && limit > 0 ? monitors.slice(0, limit) : monitors;
+}
+
 async function runFacebookChecks(): Promise<Map<string, MarketplaceListing[]>> {
   const client = new FacebookClient({ maxRequestsPerMinute: 3 });
-  const monitors = loadMonitors();
+  const monitors = applyMonitorLimit(loadMonitors());
   const newByMonitor = new Map<string, MarketplaceListing[]>();
 
   if (monitors.length === 0) {
@@ -64,7 +75,7 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
     return newByMonitor;
   }
 
-  const monitors = loadAutoDevMonitors();
+  const monitors = applyMonitorLimit(loadAutoDevMonitors());
   if (monitors.length === 0) {
     console.log("No Auto.dev monitors saved — skipping Auto.dev check.");
     return newByMonitor;
