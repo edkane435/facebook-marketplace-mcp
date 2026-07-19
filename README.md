@@ -127,6 +127,12 @@ file (copy `.env.example`) with:
   DevTools (Network tab → any facebook.com request → `cookie` request
   header), used instead of Keychain extraction. It expires periodically;
   when the daily check starts failing, grab a fresh one.
+- `AUTODEV_API_KEY` — optional second data source via
+  [Auto.dev](https://www.auto.dev/listings)'s Vehicle Listings API (dealer
+  inventory, not private-party — complements rather than duplicates the
+  Facebook results). Free API key, 1,000 calls/month free tier; this car
+  list's 9 monitors use well under that. Leave unset to skip it — Facebook
+  checks still run fine on their own.
 - `RESEND_API_KEY` / `EMAIL_TO` — sends the digest via
   [Resend](https://resend.com)'s HTTP API rather than raw SMTP. This
   matters on most cloud hosts (Railway included): outbound SMTP ports are
@@ -152,6 +158,7 @@ to run every time) then `daily-check` on each fire, with
    - `FB_COOKIE_HEADER`, `RESEND_API_KEY`, `EMAIL_TO` (same as the `.env`
      values above — set as real env vars here instead, no `.env` file
      needed on Railway)
+   - `AUTODEV_API_KEY` (optional — omit to skip the Auto.dev source)
    - `FB_MARKETPLACE_HOME` = the volume's mount path (e.g. `/data`), so
      persisted state lands on the volume instead of the ephemeral
      container filesystem
@@ -171,6 +178,7 @@ up, but Railway's default Node builder normally includes what it needs.
 | `CHROME_PROFILE` | `Default` | Chrome profile directory name |
 | `FB_COOKIE_HEADER` | — | Manual Facebook cookie header, bypasses Chrome/Keychain extraction when set |
 | `FB_MARKETPLACE_HOME` | `~/.fb-marketplace` | Where monitors/found-cars state is stored — point this at a mounted volume on hosts with an ephemeral filesystem |
+| `AUTODEV_API_KEY` | — | Auto.dev Vehicle Listings API key — optional second data source, skipped entirely if unset |
 | `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
 
 ## Updating GraphQL Queries

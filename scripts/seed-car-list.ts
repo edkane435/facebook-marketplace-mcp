@@ -4,6 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { addMonitor, loadMonitors } from "../src/storage/monitors.js";
+import {
+  addAutoDevMonitor,
+  loadAutoDevMonitors,
+} from "../src/storage/autodev-monitors.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "..", "config", "car-list.json");
@@ -22,6 +26,16 @@ interface CarListConfig {
     min_price?: number;
     max_price?: number;
   }>;
+  autodev?: {
+    zip: string;
+    distance_miles: number;
+    vehicles: Array<{
+      monitor: string;
+      make: string;
+      model: string;
+      class: string;
+    }>;
+  };
 }
 
 function main() {
@@ -32,7 +46,7 @@ function main() {
 
   for (const vehicle of config.vehicles) {
     if (existing.has(vehicle.monitor)) {
-      console.log(`skip  ${vehicle.monitor.padEnd(12)} (monitor already exists)`);
+      console.log(`skip  ${vehicle.monitor.padEnd(18)} (monitor already exists)`);
       continue;
     }
 
@@ -46,7 +60,30 @@ function main() {
       limit: 24,
     });
 
-    console.log(`added ${vehicle.monitor.padEnd(12)} "${vehicle.query}" (${vehicle.class})`);
+    console.log(`added ${vehicle.monitor.padEnd(18)} "${vehicle.query}" (${vehicle.class})`);
+  }
+
+  if (config.autodev) {
+    const existingAutoDev = new Set(loadAutoDevMonitors().map((m) => m.name));
+    console.log(`\nSeeding Auto.dev monitors near ${config.autodev.zip}\n`);
+
+    for (const vehicle of config.autodev.vehicles) {
+      if (existingAutoDev.has(vehicle.monitor)) {
+        console.log(`skip  ${vehicle.monitor.padEnd(18)} (monitor already exists)`);
+        continue;
+      }
+
+      addAutoDevMonitor(vehicle.monitor, {
+        make: vehicle.make,
+        model: vehicle.model,
+        zip: config.autodev.zip,
+        distanceMiles: config.autodev.distance_miles,
+      });
+
+      console.log(
+        `added ${vehicle.monitor.padEnd(18)} "${vehicle.make} ${vehicle.model}" (${vehicle.class})`
+      );
+    }
   }
 
   console.log("\nDone. Use check_monitors (or list_monitors) via the MCP to see results.");

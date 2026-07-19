@@ -51,5 +51,65 @@
       "query": "Ram 1500",
       "class": "Truck"
     }
-  ]
+  ],
+  "autodev": {
+    "zip": "19382",
+    "distance_miles": 65,
+    "vehicles": [
+      {
+        "monitor": "yukon-autodev",
+        "make": "GMC",
+        "model": "Yukon",
+        "class": "Full-size SUV"
+      },
+      {
+        "monitor": "tahoe-autodev",
+        "make": "Chevrolet",
+        "model": "Tahoe",
+        "class": "Full-size SUV"
+      },
+      {
+        "monitor": "telluride-autodev",
+        "make": "Kia",
+        "model": "Telluride",
+        "class": "Midsize 3-row crossover"
+      },
+      {
+        "monitor": "palisade-autodev",
+        "make": "Hyundai",
+        "model": "Palisade",
+        "class": "Midsize 3-row crossover"
+      },
+      {
+        "monitor": "pilot-autodev",
+        "make": "Honda",
+        "model": "Pilot",
+        "class": "Midsize 3-row crossover"
+      },
+      {
+        "monitor": "highlander-autodev",
+        "make": "Toyota",
+        "model": "Highlander",
+        "class": "Midsize 3-row crossover"
+      },
+      {
+        "monitor": "atlas-autodev",
+        "make": "Volkswagen",
+        "model": "Atlas",
+        "class": "Midsize 3-row crossover"
+      },
+      {
+        "monitor": "f150-autodev",
+        "make": "Ford",
+        "model": "F-150",
+        "class": "Truck"
+      },
+      {
+        "monitor": "ram1500-autodev",
+        "make": "Ram",
+        "model": "1500",
+        "class": "Truck"
+      }
+    ]
+  }
 }
