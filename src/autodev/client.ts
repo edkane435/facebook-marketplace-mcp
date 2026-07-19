@@ -8,7 +8,9 @@ export interface AutoDevListing {
   vin: string;
   title: string;
   price: string;
+  priceValue: number | null;
   mileage: string;
+  mileageValue: number | null;
   location: string;
   dealer: string;
   url: string;
@@ -20,6 +22,8 @@ export interface AutoDevSearchParams {
   model: string;
   zip: string;
   distanceMiles: number;
+  minMileage?: number;
+  maxMileage?: number;
 }
 
 export async function searchAutoDevListings(
@@ -30,6 +34,16 @@ export async function searchAutoDevListings(
   url.searchParams.set("vehicle.model", params.model);
   url.searchParams.set("zip", params.zip);
   url.searchParams.set("distance", String(params.distanceMiles));
+
+  if (params.minMileage != null || params.maxMileage != null) {
+    // Same dash-range convention Auto.dev's docs show for price/year —
+    // unconfirmed for mileage specifically, so mileageValue below is also
+    // filtered client-side as a safety net in case this param is ignored.
+    url.searchParams.set(
+      "retailListing.mileage",
+      `${params.minMileage ?? 0}-${params.maxMileage ?? 999999}`
+    );
+  }
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${params.apiKey}` },
@@ -66,12 +80,17 @@ export async function searchAutoDevListings(
       .filter(Boolean)
       .join(" ");
 
-    const price =
-      listing.price != null ? `$${Number(listing.price).toLocaleString()}` : "N/A";
+    const rawPrice = listing.price;
+    const priceValue = rawPrice != null ? Number(rawPrice) : null;
+    const price = priceValue != null ? `$${priceValue.toLocaleString()}` : "N/A";
+
+    // Best-effort field name guesses — mileage came back N/A on the first
+    // real run, so "mileage" alone isn't it. Trying likely alternates.
+    const rawMileage = listing.mileage ?? listing.odometer ?? listing.miles;
+    const mileageValue = rawMileage != null ? Number(rawMileage) : null;
     const mileage =
-      listing.mileage != null
-        ? `${Number(listing.mileage).toLocaleString()} mi`
-        : "N/A";
+      mileageValue != null ? `${mileageValue.toLocaleString()} mi` : "N/A";
+
     const location =
       [listing.city, listing.state].filter(Boolean).join(", ") || "Unknown";
     const vin = vehicle.vin ?? r.vin ?? "";
@@ -79,7 +98,7 @@ export async function searchAutoDevListings(
     // Best-effort guess at whichever field holds the clickout/detail link —
     // none of these are confirmed against a real response yet. Falls back to
     // a VIN search rather than inventing a URL pattern that 404s.
-    const url =
+    const listingUrl =
       listing.vdpUrl ??
       listing.clickoutUrl ??
       listing.listingUrl ??
@@ -92,10 +111,12 @@ export async function searchAutoDevListings(
       vin,
       title: title || "Unknown vehicle",
       price,
+      priceValue,
       mileage,
+      mileageValue,
       location,
       dealer: listing.dealerName ?? listing.dealer ?? "Unknown",
-      url,
+      url: listingUrl,
     };
   });
 }

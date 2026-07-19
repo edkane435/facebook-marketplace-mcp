@@ -15,6 +15,10 @@ import {
   updateAutoDevMonitorSeenVins,
 } from "../src/storage/autodev-monitors.js";
 import { searchAutoDevListings } from "../src/autodev/client.js";
+import {
+  filterToGoodDeals,
+  DEFAULT_DEAL_FILTER,
+} from "../src/autodev/deal-filter.js";
 import { appendFoundCars } from "../src/storage/found-cars.js";
 import { loadEmailConfigFromEnv, sendDigestEmail } from "../src/email/send.js";
 import type { MarketplaceListing } from "../src/facebook/types.js";
@@ -66,17 +70,29 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
   }
 
   for (const monitor of monitors) {
-    const listings = await searchAutoDevListings({ apiKey, ...monitor.params });
-    const newListings = listings.filter(
+    const listings = await searchAutoDevListings({
+      apiKey,
+      ...monitor.params,
+      minMileage: DEFAULT_DEAL_FILTER.minMileage,
+      maxMileage: DEFAULT_DEAL_FILTER.maxMileage,
+    });
+
+    // Mark every VIN seen this run — including ones that don't clear the
+    // deal filter — so a listing that's not a deal today doesn't keep
+    // showing up as "noise" on every future run just because it's still
+    // listed. (Tradeoff: if it later drops in price into deal territory,
+    // it won't re-surface since it's already marked seen — same limitation
+    // the Facebook side has; no price-history tracking here yet.)
+    const allVins = listings.map((l) => l.vin).filter(Boolean);
+
+    const goodDeals = filterToGoodDeals(listings);
+    const newListings = goodDeals.filter(
       (l) => l.vin && !monitor.seenVins.includes(l.vin)
     );
 
-    if (newListings.length > 0) {
-      updateAutoDevMonitorSeenVins(
-        monitor.name,
-        newListings.map((l) => l.vin)
-      );
+    updateAutoDevMonitorSeenVins(monitor.name, allVins);
 
+    if (newListings.length > 0) {
       const asListings: MarketplaceListing[] = newListings.map((l) => ({
         id: l.vin,
         title: `${l.title} — ${l.mileage}`,
@@ -91,8 +107,6 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
 
       appendFoundCars(monitor.name, asListings);
       newByMonitor.set(monitor.name, asListings);
-    } else {
-      updateAutoDevMonitorSeenVins(monitor.name, []);
     }
   }
 

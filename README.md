@@ -133,6 +133,15 @@ file (copy `.env.example`) with:
   Facebook results). Free API key, 1,000 calls/month free tier; this car
   list's 9 monitors use well under that. Leave unset to skip it — Facebook
   checks still run fine on their own.
+
+  Auto.dev results are filtered before anything gets reported: mileage
+  1-20,000 (excludes new-dealer-stock and anything over that cap), then
+  only listings priced at least 10% below the median price of comparable
+  results in the same batch survive. There's no cheap automated valuation
+  API to compare against (see `docs/car-list.md`), so this peer-comparison
+  is a rough, free stand-in — a pre-filter to cut noise, not a verdict.
+  Tunable in `src/autodev/deal-filter.ts` (`DEFAULT_DEAL_FILTER`) if you
+  want a different mileage cap or discount threshold.
 - `RESEND_API_KEY` / `EMAIL_TO` — sends the digest via
   [Resend](https://resend.com)'s HTTP API rather than raw SMTP. This
   matters on most cloud hosts (Railway included): outbound SMTP ports are
