@@ -72,17 +72,20 @@ export async function searchAutoDevListings(
       [listing.city, listing.state].filter(Boolean).join(", ") || "Unknown";
     const vin = vehicle.vin ?? r.vin ?? "";
 
-    // "vdp" (vehicle detail page) is the confirmed field, but its exact
-    // format (full URL vs relative path) hasn't been seen directly since
-    // it was empty on the monitors checked so far — handling both.
+    // "vdp" (vehicle detail page) is the confirmed field, but its content
+    // varies by dealer/syndication source: sometimes a real absolute URL
+    // (e.g. a vast.com listing link), sometimes just a bare fragment like
+    // "#8976334387555541905" that only means something inside Auto.dev's
+    // own site state and 404s/goes nowhere as a standalone link. Only trust
+    // it when it's already a genuine absolute URL; otherwise fall back to
+    // a VIN search rather than gluing a non-URL fragment onto a domain.
     const rawVdp: string | undefined = listing.vdp;
-    const listingUrl = rawVdp
-      ? rawVdp.startsWith("http")
+    const listingUrl =
+      rawVdp && rawVdp.startsWith("http")
         ? rawVdp
-        : `https://www.auto.dev${rawVdp.startsWith("/") ? "" : "/"}${rawVdp}`
-      : vin
-        ? `https://www.google.com/search?q=${encodeURIComponent(vin)}`
-        : "";
+        : vin
+          ? `https://www.google.com/search?q=${encodeURIComponent(vin)}`
+          : "";
 
     return {
       vin,
