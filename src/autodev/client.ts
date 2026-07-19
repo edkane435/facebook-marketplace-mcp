@@ -45,6 +45,18 @@ export async function searchAutoDevListings(
   const json = (await res.json()) as { data?: unknown[] };
   const rows = Array.isArray(json.data) ? json.data : [];
 
+  if (rows.length > 0) {
+    const sample = rows[0] as Record<string, any>;
+    console.log(
+      "[auto.dev] retailListing keys:",
+      Object.keys(sample.retailListing ?? {}).join(", ")
+    );
+    console.log(
+      "[auto.dev] vehicle keys:",
+      Object.keys(sample.vehicle ?? {}).join(", ")
+    );
+  }
+
   return rows.map((row) => {
     const r = row as Record<string, any>;
     const vehicle = r.vehicle ?? {};
@@ -64,6 +76,18 @@ export async function searchAutoDevListings(
       [listing.city, listing.state].filter(Boolean).join(", ") || "Unknown";
     const vin = vehicle.vin ?? r.vin ?? "";
 
+    // Best-effort guess at whichever field holds the clickout/detail link —
+    // none of these are confirmed against a real response yet. Falls back to
+    // a VIN search rather than inventing a URL pattern that 404s.
+    const url =
+      listing.vdpUrl ??
+      listing.clickoutUrl ??
+      listing.listingUrl ??
+      listing.detailUrl ??
+      listing.link ??
+      listing.url ??
+      (vin ? `https://www.google.com/search?q=${encodeURIComponent(vin)}` : "");
+
     return {
       vin,
       title: title || "Unknown vehicle",
@@ -71,7 +95,7 @@ export async function searchAutoDevListings(
       mileage,
       location,
       dealer: listing.dealerName ?? listing.dealer ?? "Unknown",
-      url: listing.vdpUrl ?? listing.url ?? (vin ? `https://www.auto.dev/listings/${vin}` : ""),
+      url,
     };
   });
 }
