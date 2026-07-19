@@ -22,8 +22,6 @@ export interface AutoDevSearchParams {
   model: string;
   zip: string;
   distanceMiles: number;
-  minMileage?: number;
-  maxMileage?: number;
 }
 
 export async function searchAutoDevListings(
@@ -35,15 +33,12 @@ export async function searchAutoDevListings(
   url.searchParams.set("zip", params.zip);
   url.searchParams.set("distance", String(params.distanceMiles));
 
-  if (params.minMileage != null || params.maxMileage != null) {
-    // Same dash-range convention Auto.dev's docs show for price/year —
-    // unconfirmed for mileage specifically, so mileageValue below is also
-    // filtered client-side as a safety net in case this param is ignored.
-    url.searchParams.set(
-      "retailListing.mileage",
-      `${params.minMileage ?? 0}-${params.maxMileage ?? 999999}`
-    );
-  }
+  // Deliberately not sending a server-side mileage filter param — an
+  // earlier attempt (retailListing.mileage=min-max) made every monitor
+  // return zero results, which most likely means that param name is wrong
+  // and Auto.dev is matching it against a nonexistent field rather than
+  // ignoring it. Filtering happens entirely client-side instead (see
+  // mileageValue below and src/autodev/deal-filter.ts).
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${params.apiKey}` },

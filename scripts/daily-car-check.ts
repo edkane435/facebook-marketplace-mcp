@@ -15,10 +15,7 @@ import {
   updateAutoDevMonitorSeenVins,
 } from "../src/storage/autodev-monitors.js";
 import { searchAutoDevListings } from "../src/autodev/client.js";
-import {
-  filterToGoodDeals,
-  DEFAULT_DEAL_FILTER,
-} from "../src/autodev/deal-filter.js";
+import { filterToGoodDeals } from "../src/autodev/deal-filter.js";
 import { appendFoundCars } from "../src/storage/found-cars.js";
 import { loadEmailConfigFromEnv, sendDigestEmail } from "../src/email/send.js";
 import { acquireLock, releaseLock } from "../src/utils/lock.js";
@@ -82,12 +79,7 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
   }
 
   for (const monitor of monitors) {
-    const listings = await searchAutoDevListings({
-      apiKey,
-      ...monitor.params,
-      minMileage: DEFAULT_DEAL_FILTER.minMileage,
-      maxMileage: DEFAULT_DEAL_FILTER.maxMileage,
-    });
+    const listings = await searchAutoDevListings({ apiKey, ...monitor.params });
 
     // Mark every VIN seen this run — including ones that don't clear the
     // deal filter — so a listing that's not a deal today doesn't keep
