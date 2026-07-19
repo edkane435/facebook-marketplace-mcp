@@ -75,7 +75,14 @@ npm run seed-car-list   # one-time: creates the 9 monitors above
 Then, from Claude (or whichever agent has this MCP connected), just ask it
 to check your car monitors — that runs `check_monitors` and reports new
 listings across all nine searches at once. Re-run it hourly, daily, however
-often you want; it only shows genuinely new listings each time.
+often you want; it only shows genuinely *new* listings each time.
+
+To see the full list of everything found so far (not just the latest
+check), ask for `list_found_cars` — optionally scoped to one monitor, e.g.
+"show me found cars for the telluride monitor." It reads from
+`~/.fb-marketplace/cars.csv`, which every `check_monitors` run appends to,
+so it's a running history you can also open directly in Excel/Numbers/a
+text editor at any time.
 
 For each new candidate: price it (KBB/Edmunds), and if it clears the "good
 deal" bar above, message the seller yourself. That last step is manual by

@@ -14,10 +14,12 @@ import {
   checkMonitorsSchema,
   deleteMonitorSchema,
   listMonitorsSchema,
+  listFoundCarsSchema,
   createMonitorSearchHandler,
   createCheckMonitorsHandler,
   createDeleteMonitorHandler,
   createListMonitorsHandler,
+  createListFoundCarsHandler,
 } from "./tools/monitor.js";
 
 const client = new FacebookClient({
@@ -84,6 +86,14 @@ server.tool(
   "List all saved search monitors",
   listMonitorsSchema,
   createListMonitorsHandler()
+);
+
+// List cars found by monitors (persisted history, not just the latest check)
+server.tool(
+  "list_found_cars",
+  "List cars found by monitors over time, from the persisted cars.csv history",
+  listFoundCarsSchema,
+  createListFoundCarsHandler()
 );
 
 // Start the server

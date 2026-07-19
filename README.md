@@ -91,6 +91,15 @@ Check monitors for new listings since last check.
 ### `list_monitors`
 List all saved monitors.
 
+### `list_found_cars`
+List cars discovered by monitors over time, read from the persisted
+`cars.csv` history (not just what turned up on the latest check).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `monitor_name` | string | no | Only show cars from this monitor, or omit for all |
+| `limit` | number | no | Max cars to show, most recent first (default: 50) |
+
 ### `delete_monitor`
 Delete a saved monitor.
 
@@ -98,8 +107,11 @@ Delete a saved monitor.
 
 `npm run seed-car-list` pre-creates monitors for a specific vehicle
 shortlist (see `config/car-list.json`) instead of calling `monitor_search`
-by hand for each one. Ask your agent to check the monitors periodically and
-value any new hit against KBB/Edmunds before reaching out — see
+by hand for each one. Ask your agent to check the monitors periodically,
+then ask for `list_found_cars` any time to see everything discovered so
+far — it reads from a persisted `cars.csv` in `~/.fb-marketplace/`, so
+nothing is lost once `check_monitors` marks a listing as seen. Value any
+new hit against KBB/Edmunds before reaching out — see
 [`docs/car-list.md`](docs/car-list.md) for the target vehicles, area, and
 what counts as a good deal.
 

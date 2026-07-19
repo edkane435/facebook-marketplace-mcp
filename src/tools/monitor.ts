@@ -7,6 +7,11 @@ import {
   updateMonitorSeenIds,
   deleteMonitor,
 } from "../storage/monitors.js";
+import {
+  appendFoundCars,
+  loadFoundCars,
+  foundCarsFilePath,
+} from "../storage/found-cars.js";
 
 export const monitorSearchSchema = {
   name: z.string().describe("Name for this saved search monitor"),
@@ -31,6 +36,17 @@ export const deleteMonitorSchema = {
 };
 
 export const listMonitorsSchema = {};
+
+export const listFoundCarsSchema = {
+  monitor_name: z
+    .string()
+    .optional()
+    .describe("Only show cars found by this monitor, or omit for all"),
+  limit: z
+    .number()
+    .default(50)
+    .describe("Max number of cars to show, most recent first (default: 50)"),
+};
 
 export function createMonitorSearchHandler() {
   return async (args: {
@@ -112,6 +128,7 @@ export function createCheckMonitorsHandler(client: FacebookClient) {
             monitor.name,
             newListings.map((l) => l.id)
           );
+          appendFoundCars(monitor.name, newListings);
 
           const listingSummary = newListings
             .map(
@@ -185,6 +202,41 @@ export function createListMonitorsHandler() {
 
     return {
       content: [{ type: "text" as const, text: `## Saved Monitors\n\n${list}` }],
+    };
+  };
+}
+
+export function createListFoundCarsHandler() {
+  return async (args: { monitor_name?: string; limit: number }) => {
+    const cars = loadFoundCars(args.monitor_name).slice(-args.limit).reverse();
+
+    if (cars.length === 0) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: args.monitor_name
+              ? `No cars found yet by monitor "${args.monitor_name}". Run check_monitors first.`
+              : "No cars found yet. Run check_monitors first.",
+          },
+        ],
+      };
+    }
+
+    const list = cars
+      .map(
+        (c, i) =>
+          `${i + 1}. **${c.title}** — ${c.price} (${c.monitor})\n   📍 ${c.location} | found ${c.dateFound}\n   🔗 ${c.url}`
+      )
+      .join("\n\n");
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `## Found Cars (${cars.length})\n\n${list}\n\n_Full history: ${foundCarsFilePath()}_`,
+        },
+      ],
     };
   };
 }
