@@ -74,6 +74,15 @@ export function updateAutoDevMonitorSeenVins(name: string, newVins: string[]): v
   saveAutoDevMonitors(monitors);
 }
 
+export function deleteAutoDevMonitor(name: string): boolean {
+  const monitors = loadAutoDevMonitors();
+  const idx = monitors.findIndex((m) => m.name === name);
+  if (idx === -1) return false;
+  monitors.splice(idx, 1);
+  saveAutoDevMonitors(monitors);
+  return true;
+}
+
 // Clears seenVins on every saved monitor (keeps the monitors themselves —
 // make/model/zip/distance — intact) so the next check reports everything
 // currently matching as "new", as if running for the first time.

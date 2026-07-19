@@ -3,10 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { addMonitor, loadMonitors } from "../src/storage/monitors.js";
+import { addMonitor, loadMonitors, deleteMonitor } from "../src/storage/monitors.js";
 import {
   addAutoDevMonitor,
   loadAutoDevMonitors,
+  deleteAutoDevMonitor,
 } from "../src/storage/autodev-monitors.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -63,6 +64,14 @@ function main() {
     console.log(`added ${vehicle.monitor.padEnd(18)} "${vehicle.query}" (${vehicle.class})`);
   }
 
+  const wantedFb = new Set(config.vehicles.map((v) => v.monitor));
+  for (const name of existing) {
+    if (!wantedFb.has(name)) {
+      deleteMonitor(name);
+      console.log(`removed ${name.padEnd(17)} (no longer in car-list.json)`);
+    }
+  }
+
   if (config.autodev) {
     const existingAutoDev = new Set(loadAutoDevMonitors().map((m) => m.name));
     console.log(`\nSeeding Auto.dev monitors near ${config.autodev.zip}\n`);
@@ -83,6 +92,14 @@ function main() {
       console.log(
         `added ${vehicle.monitor.padEnd(18)} "${vehicle.make} ${vehicle.model}" (${vehicle.class})`
       );
+    }
+
+    const wantedAutoDev = new Set(config.autodev.vehicles.map((v) => v.monitor));
+    for (const name of existingAutoDev) {
+      if (!wantedAutoDev.has(name)) {
+        deleteAutoDevMonitor(name);
+        console.log(`removed ${name.padEnd(17)} (no longer in car-list.json)`);
+      }
     }
   }
 

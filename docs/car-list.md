@@ -16,14 +16,12 @@ before reaching out. No bulk messaging, no flipping — one car, bought right.
 | Class | Models | Monitor name |
 |---|---|---|
 | Full-size SUV | GMC Yukon, Chevrolet Tahoe | `yukon`, `tahoe` |
-| Midsize 3-row crossover | Kia Telluride + close peers (Hyundai Palisade, Honda Pilot, Toyota Highlander, VW Atlas) | `telluride`, `palisade`, `pilot`, `highlander`, `atlas` |
+| Midsize 3-row crossover | Kia Telluride, Toyota Highlander | `telluride`, `highlander` |
 | Truck | Ford F-150, Ram 1500 | `f150`, `ram1500` |
 
-The Telluride peers are included because "a 3-row crossover like the
-Telluride" casts a slightly wider net than one nameplate — same segment,
-similar size/features, and cross-shopping them is how you actually find the
-best deal in that class. Delete the ones you don't care about from
-`config/car-list.json` if you'd rather keep it to Telluride only.
+Add or remove vehicles by editing `config/car-list.json` and running
+`npm run seed-car-list` again — it reconciles saved monitors to match the
+config exactly, adding new entries and removing ones no longer listed.
 
 No price filters are set on any monitor — per your call, this is about deal
 quality, not a fixed budget band. `max_price` is available per-vehicle in the
@@ -72,11 +70,11 @@ where cookie extraction comes from:
 ```bash
 npm install
 npm run build
-npm run seed-car-list   # one-time: creates the 9 monitors above
+npm run seed-car-list   # one-time: creates the monitors above
 ```
 
 Then just ask it to check your car monitors — that runs `check_monitors`
-and reports new listings across all nine searches at once. Ask for
+and reports new listings across all of them at once. Ask for
 `list_found_cars` any time to see everything discovered so far (not just
 the latest check) — optionally scoped to one monitor, e.g. "show me found
 cars for the telluride monitor."

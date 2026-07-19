@@ -131,7 +131,7 @@ file (copy `.env.example`) with:
   [Auto.dev](https://www.auto.dev/listings)'s Vehicle Listings API (dealer
   inventory, not private-party — complements rather than duplicates the
   Facebook results). Free API key, 1,000 calls/month free tier; this car
-  list's 9 monitors use well under that. Leave unset to skip it — Facebook
+  list's monitors use well under that. Leave unset to skip it — Facebook
   checks still run fine on their own.
 
   Auto.dev results are filtered before anything gets reported: mileage

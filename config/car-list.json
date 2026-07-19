@@ -22,23 +22,8 @@
       "class": "Midsize 3-row crossover"
     },
     {
-      "monitor": "palisade",
-      "query": "Hyundai Palisade",
-      "class": "Midsize 3-row crossover"
-    },
-    {
-      "monitor": "pilot",
-      "query": "Honda Pilot",
-      "class": "Midsize 3-row crossover"
-    },
-    {
       "monitor": "highlander",
       "query": "Toyota Highlander",
-      "class": "Midsize 3-row crossover"
-    },
-    {
-      "monitor": "atlas",
-      "query": "Volkswagen Atlas",
       "class": "Midsize 3-row crossover"
     },
     {
@@ -75,27 +60,9 @@
         "class": "Midsize 3-row crossover"
       },
       {
-        "monitor": "palisade-autodev",
-        "make": "Hyundai",
-        "model": "Palisade",
-        "class": "Midsize 3-row crossover"
-      },
-      {
-        "monitor": "pilot-autodev",
-        "make": "Honda",
-        "model": "Pilot",
-        "class": "Midsize 3-row crossover"
-      },
-      {
         "monitor": "highlander-autodev",
         "make": "Toyota",
         "model": "Highlander",
-        "class": "Midsize 3-row crossover"
-      },
-      {
-        "monitor": "atlas-autodev",
-        "make": "Volkswagen",
-        "model": "Atlas",
         "class": "Midsize 3-row crossover"
       },
       {
