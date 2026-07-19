@@ -6,6 +6,7 @@ import type {
 } from "./types.js";
 import {
   extractChromeCookies,
+  parseCookieHeader,
   cookiesToHeader,
   getCookieValue,
 } from "./auth.js";
@@ -43,15 +44,20 @@ export class FacebookClient {
   private rateLimiter: RateLimiter;
   private reqCounter = 0;
   private chromeProfile: string;
+  private manualCookieHeader?: string;
 
   constructor(
     options: {
       maxRequestsPerMinute?: number;
       chromeProfile?: string;
+      cookieHeader?: string;
     } = {}
   ) {
     this.rateLimiter = new RateLimiter(options.maxRequestsPerMinute ?? 3);
     this.chromeProfile = options.chromeProfile ?? "Default";
+    // Explicit option wins; otherwise fall back to env var so headless
+    // hosts (no Chrome/Keychain) can still authenticate.
+    this.manualCookieHeader = options.cookieHeader ?? process.env.FB_COOKIE_HEADER;
   }
 
   async ensureSession(): Promise<FacebookSession> {
@@ -60,22 +66,26 @@ export class FacebookClient {
   }
 
   async initSession(): Promise<FacebookSession> {
-    const cookies = extractChromeCookies("facebook.com", this.chromeProfile);
+    const cookies = this.manualCookieHeader
+      ? parseCookieHeader(this.manualCookieHeader)
+      : extractChromeCookies("facebook.com", this.chromeProfile);
 
     if (cookies.length === 0) {
       throw new Error(
-        "No Facebook cookies found in Chrome. Make sure you're logged into Facebook in Chrome."
+        this.manualCookieHeader
+          ? "FB_COOKIE_HEADER is set but produced no cookies. Check the value was copied correctly."
+          : "No Facebook cookies found in Chrome. Make sure you're logged into Facebook in Chrome."
       );
     }
 
     const userId = getCookieValue(cookies, "c_user");
     if (!userId) {
       throw new Error(
-        "No c_user cookie found. Make sure you're logged into Facebook in Chrome."
+        "No c_user cookie found. Make sure you're logged into Facebook (and that FB_COOKIE_HEADER includes the c_user cookie, if set)."
       );
     }
 
-    const cookieHeader = cookiesToHeader(cookies);
+    const cookieHeader = this.manualCookieHeader ?? cookiesToHeader(cookies);
 
     // Fetch marketplace page to extract tokens
     const tokens = await this.extractTokens(cookieHeader);

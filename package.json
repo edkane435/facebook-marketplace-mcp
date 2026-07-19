@@ -12,16 +12,19 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "capture-queries": "tsx scripts/capture-queries.ts",
-    "seed-car-list": "tsx scripts/seed-car-list.ts"
+    "seed-car-list": "tsx scripts/seed-car-list.ts",
+    "daily-check": "tsx scripts/daily-car-check.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.0.0",
+    "nodemailer": "^9.0.3",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }

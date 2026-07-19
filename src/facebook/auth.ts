@@ -153,6 +153,28 @@ export function extractChromeCookies(
   }
 }
 
+// Parses a raw `Cookie:` header value (as copied from a browser's DevTools
+// Network tab) into the same shape extractChromeCookies produces, for
+// environments with no Chrome/Keychain to extract from (Linux, CI, etc).
+export function parseCookieHeader(header: string): FacebookCookie[] {
+  return header
+    .split(";")
+    .map((pair) => {
+      const eq = pair.indexOf("=");
+      if (eq === -1) return null;
+      return {
+        host: ".facebook.com",
+        name: pair.slice(0, eq).trim(),
+        value: pair.slice(eq + 1).trim(),
+        path: "/",
+        expires: 0,
+        secure: true,
+        httpOnly: false,
+      };
+    })
+    .filter((c): c is FacebookCookie => c !== null && c.name.length > 0);
+}
+
 export function cookiesToHeader(cookies: FacebookCookie[]): string {
   return cookies
     .map((c) => {

@@ -62,9 +62,12 @@ Same valuation method as the source playbook, just without the resale math:
 
 ## Running it
 
-This MCP requires macOS + Chrome logged into Facebook (cookie extraction),
-so seeding and checking monitors has to happen on your own machine, not in
-a cloud sandbox:
+Two ways to run this, depending on whether a person or a schedule is
+driving:
+
+**Interactively**, from Claude (or whichever agent has this MCP
+connected) — requires macOS + Chrome logged into Facebook, since that's
+where cookie extraction comes from:
 
 ```bash
 npm install
@@ -72,17 +75,23 @@ npm run build
 npm run seed-car-list   # one-time: creates the 9 monitors above
 ```
 
-Then, from Claude (or whichever agent has this MCP connected), just ask it
-to check your car monitors — that runs `check_monitors` and reports new
-listings across all nine searches at once. Re-run it hourly, daily, however
-often you want; it only shows genuinely *new* listings each time.
+Then just ask it to check your car monitors — that runs `check_monitors`
+and reports new listings across all nine searches at once. Ask for
+`list_found_cars` any time to see everything discovered so far (not just
+the latest check) — optionally scoped to one monitor, e.g. "show me found
+cars for the telluride monitor."
 
-To see the full list of everything found so far (not just the latest
-check), ask for `list_found_cars` — optionally scoped to one monitor, e.g.
-"show me found cars for the telluride monitor." It reads from
-`~/.fb-marketplace/cars.csv`, which every `check_monitors` run appends to,
-so it's a running history you can also open directly in Excel/Numbers/a
-text editor at any time.
+**Unattended, on a schedule** — no Chrome, no agent loop, no macOS
+required. `npm run daily-check` does the same check-and-persist as above
+but as a standalone script, and emails you a digest instead of replying in
+chat. See the README's "Running unattended" section for the `.env` setup
+(a manual Facebook cookie header + Gmail SMTP App Password). This is the
+one to point a cron job or a Claude Routine at for a true "runs once a day,
+emails me" setup.
+
+Either way, everything lands in the same `~/.fb-marketplace/cars.csv`, so
+you can also just open that file directly in Excel/Numbers/a text editor
+at any time.
 
 For each new candidate: price it (KBB/Edmunds), and if it clears the "good
 deal" bar above, message the seller yourself. That last step is manual by

@@ -115,11 +115,33 @@ new hit against KBB/Edmunds before reaching out — see
 [`docs/car-list.md`](docs/car-list.md) for the target vehicles, area, and
 what counts as a good deal.
 
+### Running unattended (no MCP client, no Chrome/Keychain)
+
+`npm run daily-check` (`scripts/daily-car-check.ts`) checks every saved
+monitor and emails a digest of new listings — no MCP client or agent loop
+required, so it can run on a schedule (cron, a Claude Routine, etc.) on any
+host, including ones without Chrome or macOS Keychain. It needs a `.env`
+file (copy `.env.example`) with:
+
+- `FB_COOKIE_HEADER` — a raw Facebook cookie header copied from Chrome
+  DevTools (Network tab → any facebook.com request → `cookie` request
+  header), used instead of Keychain extraction. It expires periodically;
+  when the daily check starts failing, grab a fresh one.
+- `SMTP_USER` / `SMTP_APP_PASSWORD` / `EMAIL_TO` — Gmail SMTP credentials
+  (an [App Password](https://myaccount.google.com/apppasswords), not your
+  normal password) for sending the digest.
+
+If `SMTP_*` isn't set, it just prints the digest to stdout instead of
+emailing. If the check itself fails (most likely an expired cookie), it
+emails an alert saying so instead of failing silently.
+
 ## Configuration
 
 | Env Variable | Default | Description |
 |-------------|---------|-------------|
 | `CHROME_PROFILE` | `Default` | Chrome profile directory name |
+| `FB_COOKIE_HEADER` | — | Manual Facebook cookie header, bypasses Chrome/Keychain extraction when set |
+| `SMTP_USER` / `SMTP_APP_PASSWORD` / `EMAIL_TO` | — | Gmail SMTP credentials for `daily-check`'s digest email |
 
 ## Updating GraphQL Queries
 
