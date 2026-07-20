@@ -11,7 +11,7 @@ import {
 } from "./storage/autodev-monitors.js";
 import { searchAutoDevListings } from "./autodev/client.js";
 import { filterToGoodDeals } from "./autodev/deal-filter.js";
-import { appendFoundCars } from "./storage/found-cars.js";
+import { appendFoundCars, clearFoundCars } from "./storage/found-cars.js";
 import { loadEmailConfigFromEnv, sendDigestEmail } from "./email/send.js";
 import { acquireLock, releaseLock } from "./utils/lock.js";
 import type { MarketplaceListing } from "./facebook/types.js";
@@ -167,10 +167,13 @@ export async function runDailyCheck(): Promise<void> {
 
   if (process.env.RESET_AUTODEV_SEEN === "true") {
     resetAllSeenVins();
+    clearFoundCars();
     console.log(
-      "RESET_AUTODEV_SEEN=true — cleared seen-state, every current match " +
-        "will report as new this run. Remove this variable after one run " +
-        "or it'll reset every time and you'll get full results daily."
+      "RESET_AUTODEV_SEEN=true — cleared seen-state and wiped cars.csv. " +
+        "Every current match will report as new this run, with none of the " +
+        "old history (including any stale pre-fix links) left behind. " +
+        "Remove this variable after one run or it'll wipe history and " +
+        "re-report everything every single day."
     );
   }
 

@@ -210,7 +210,7 @@ up, but Railway's default Node builder normally includes what it needs.
 | `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
 | `SKIP_FACEBOOK` | — | Set to `true` to skip the Facebook check entirely (Auto.dev-only) |
 | `MAX_MONITORS` | — | Testing knob — only check the first N monitors of each source |
-| `RESET_AUTODEV_SEEN` | — | Set to `true` for one run to clear Auto.dev seen-state (remove after) |
+| `RESET_AUTODEV_SEEN` | — | Set to `true` for one run to start fresh — clears Auto.dev seen-state and wipes `cars.csv` entirely, so every current match re-reports as new with no old history left behind (remove the variable after one run) |
 | `PORT` | `3000` | Port `npm run serve` listens on (Railway sets this automatically) |
 | `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` | `13` / `0` | When `npm run serve`'s internal scheduler fires the daily check |
 

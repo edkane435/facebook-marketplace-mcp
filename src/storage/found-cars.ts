@@ -130,3 +130,10 @@ export function loadFoundCars(monitorName?: string): FoundCar[] {
 export function foundCarsFilePath(): string {
   return getCarsFile();
 }
+
+export function clearFoundCars(): void {
+  const carsFile = getCarsFile();
+  if (fs.existsSync(carsFile)) {
+    fs.unlinkSync(carsFile);
+  }
+}
