@@ -165,18 +165,6 @@ export async function runDailyCheck(): Promise<void> {
     return;
   }
 
-  if (process.env.RESET_AUTODEV_SEEN === "true") {
-    resetAllSeenVins();
-    clearFoundCars();
-    console.log(
-      "RESET_AUTODEV_SEEN=true — cleared seen-state and wiped cars.csv. " +
-        "Every current match will report as new this run, with none of the " +
-        "old history (including any stale pre-fix links) left behind. " +
-        "Remove this variable after one run or it'll wipe history and " +
-        "re-report everything every single day."
-    );
-  }
-
   const emailConfig = loadEmailConfigFromEnv();
 
   try {
@@ -229,4 +217,13 @@ export async function runDailyCheck(): Promise<void> {
   } finally {
     releaseLock();
   }
+}
+
+// Wipes all found-car history and Auto.dev seen-state, so the next check
+// re-reports every current match as new with none of the old history
+// (including any stale pre-fix links) left behind. Used by the "Clear All"
+// button in the web UI.
+export function clearAllData(): void {
+  resetAllSeenVins();
+  clearFoundCars();
 }

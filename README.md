@@ -162,7 +162,13 @@ internally on its own schedule — no MCP client, no Railway Cron Schedule
 needed. One process, one shared volume, nothing to keep in sync across
 services.
 
-- `GET /` — the car list page
+- `GET /` — the car list page, with filters (price range, location,
+  vehicle type) as query params, and two buttons:
+  - **Check now** (`POST /check-now`) — runs the check on demand instead
+    of waiting for the daily schedule
+  - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and
+    Auto.dev seen-state, so the next check re-reports every current match
+    with none of the old history (e.g. stale pre-fix links) left behind
 - `GET /health` — plain `200 ok`, for platform health checks
 - `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` (optional, default
   `13`/`0` — i.e. 9am Eastern during daylight saving) — when the internal
@@ -210,7 +216,6 @@ up, but Railway's default Node builder normally includes what it needs.
 | `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
 | `SKIP_FACEBOOK` | — | Set to `true` to skip the Facebook check entirely (Auto.dev-only) |
 | `MAX_MONITORS` | — | Testing knob — only check the first N monitors of each source |
-| `RESET_AUTODEV_SEEN` | — | Set to `true` for one run to start fresh — clears Auto.dev seen-state and wipes `cars.csv` entirely, so every current match re-reports as new with no old history left behind (remove the variable after one run) |
 | `PORT` | `3000` | Port `npm run serve` listens on (Railway sets this automatically) |
 | `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` | `13` / `0` | When `npm run serve`'s internal scheduler fires the daily check |
 

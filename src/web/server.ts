@@ -11,7 +11,7 @@ import type { FoundCar } from "../storage/found-cars.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadEnvFile(path.join(__dirname, "..", "..", ".env"));
 
-const { runDailyCheck } = await import("../check-runner.js");
+const { runDailyCheck, clearAllData } = await import("../check-runner.js");
 const { loadFoundCars } = await import("../storage/found-cars.js");
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -204,6 +204,12 @@ function renderPage(url: URL): string {
     padding: 0.45rem 0.9rem; font-size: 0.85rem; cursor: pointer;
   }
   .filters .clear { align-self: center; font-size: 0.8rem; opacity: 0.8; }
+  .actions { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
+  .actions button {
+    border: none; border-radius: 6px; padding: 0.5rem 0.9rem; font-size: 0.85rem; cursor: pointer;
+  }
+  .actions .check-now { background: #16a34a; color: #fff; }
+  .actions .clear-all { background: #b91c1c; color: #fff; }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 700px; }
   th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid #2a2d35; vertical-align: top; }
@@ -217,6 +223,10 @@ function renderPage(url: URL): string {
 <body>
   <h1>Car Watch</h1>
   <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime</p>
+  <div class="actions">
+    <form method="post" action="/check-now"><button class="check-now" type="submit">Check now</button></form>
+    <form method="post" action="/clear-all" onsubmit="return confirm('Clear all found cars and start fresh?');"><button class="clear-all" type="submit">Clear all &amp; start fresh</button></form>
+  </div>
   ${renderFilterForm(allCars, filters)}
   ${
     cars.length === 0
@@ -230,7 +240,7 @@ function renderPage(url: URL): string {
 </html>`;
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("ok");
@@ -238,6 +248,25 @@ const server = http.createServer((req, res) => {
   }
 
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+
+  if (req.method === "POST" && url.pathname === "/check-now") {
+    try {
+      await runDailyCheck();
+    } catch (err) {
+      console.error("Manual check failed:", err);
+    }
+    res.writeHead(302, { Location: "/" });
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/clear-all") {
+    clearAllData();
+    res.writeHead(302, { Location: "/" });
+    res.end();
+    return;
+  }
+
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
   res.end(renderPage(url));
 });
