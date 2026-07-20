@@ -6,6 +6,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnvFile } from "../utils/env.js";
+import type { FoundCar } from "../storage/found-cars.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadEnvFile(path.join(__dirname, "..", "..", ".env"));
@@ -49,6 +50,59 @@ function escapeHtml(value: string): string {
   );
 }
 
+function parsePriceValue(price: string): number | null {
+  const num = Number(price.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(num) && price.trim() !== "" ? num : null;
+}
+
+interface Filters {
+  minPrice?: number;
+  maxPrice?: number;
+  location: string;
+  type: string;
+}
+
+function parseFilters(url: URL): Filters {
+  const minPriceRaw = url.searchParams.get("minPrice");
+  const maxPriceRaw = url.searchParams.get("maxPrice");
+  return {
+    minPrice: minPriceRaw ? Number(minPriceRaw) : undefined,
+    maxPrice: maxPriceRaw ? Number(maxPriceRaw) : undefined,
+    location: url.searchParams.get("location")?.trim() ?? "",
+    type: url.searchParams.get("type")?.trim() ?? "",
+  };
+}
+
+function applyFilters(cars: FoundCar[], filters: Filters): FoundCar[] {
+  return cars.filter((c) => {
+    if (filters.type && c.monitor !== filters.type) return false;
+
+    if (filters.location) {
+      if (!c.location.toLowerCase().includes(filters.location.toLowerCase())) {
+        return false;
+      }
+    }
+
+    if (filters.minPrice != null || filters.maxPrice != null) {
+      const priceValue = parsePriceValue(c.price);
+      if (priceValue == null) return false;
+      if (filters.minPrice != null && priceValue < filters.minPrice) return false;
+      if (filters.maxPrice != null && priceValue > filters.maxPrice) return false;
+    }
+
+    return true;
+  });
+}
+
+// "f150-autodev" -> "F150 Autodev" — just for the dropdown label, filtering
+// still matches on the exact monitor name.
+function prettyMonitorLabel(monitor: string): string {
+  return monitor
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 function renderLinks(url: string): string {
   // Auto.dev entries pack a second Carfax link into the same field,
   // separated by " | " (see check-runner.ts) — split it back out. Not a
@@ -66,8 +120,29 @@ function renderLinks(url: string): string {
     .join(" · ");
 }
 
-function renderPage(): string {
-  const cars = loadFoundCars().slice().reverse(); // newest first
+function renderFilterForm(allCars: FoundCar[], filters: Filters): string {
+  const types = [...new Set(allCars.map((c) => c.monitor))].sort();
+  const options = types
+    .map(
+      (t) =>
+        `<option value="${escapeHtml(t)}" ${filters.type === t ? "selected" : ""}>${escapeHtml(prettyMonitorLabel(t))}</option>`
+    )
+    .join("");
+
+  return `<form class="filters" method="get" action="/">
+    <label>Min $ <input type="number" name="minPrice" value="${filters.minPrice ?? ""}" placeholder="0" inputmode="numeric"></label>
+    <label>Max $ <input type="number" name="maxPrice" value="${filters.maxPrice ?? ""}" placeholder="any" inputmode="numeric"></label>
+    <label>Location <input type="text" name="location" value="${escapeHtml(filters.location)}" placeholder="e.g. NJ"></label>
+    <label>Type <select name="type"><option value="">All</option>${options}</select></label>
+    <button type="submit">Filter</button>
+    <a class="clear" href="/">Clear</a>
+  </form>`;
+}
+
+function renderPage(url: URL): string {
+  const allCars = loadFoundCars().slice().reverse(); // newest first
+  const filters = parseFilters(url);
+  const cars = applyFilters(allCars, filters);
 
   const rows = cars
     .map(
@@ -102,9 +177,26 @@ function renderPage(): string {
     th { background: #fafafa !important; }
     a { color: #0369a1 !important; }
     td, th { border-bottom-color: #e2e2e2 !important; }
+    .filters input, .filters select { background: #fff !important; color: #16181d !important; border-color: #ccc !important; }
+    .filters button { background: #0369a1 !important; }
   }
   h1 { font-size: 1.15rem; margin: 0 0 0.25rem; }
   .meta { opacity: 0.65; font-size: 0.85rem; margin-bottom: 1rem; }
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: end;
+    margin-bottom: 1.25rem; padding: 0.75rem; border: 1px solid #2a2d35; border-radius: 8px;
+  }
+  .filters label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; opacity: 0.8; }
+  .filters input, .filters select {
+    background: #16181d; color: inherit; border: 1px solid #383b44; border-radius: 6px;
+    padding: 0.4rem 0.5rem; font-size: 0.85rem;
+  }
+  .filters input[type="number"] { width: 6rem; }
+  .filters button {
+    background: #0284c7; color: #fff; border: none; border-radius: 6px;
+    padding: 0.45rem 0.9rem; font-size: 0.85rem; cursor: pointer;
+  }
+  .filters .clear { align-self: center; font-size: 0.8rem; opacity: 0.8; }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 700px; }
   th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid #2a2d35; vertical-align: top; }
@@ -117,10 +209,11 @@ function renderPage(): string {
 </head>
 <body>
   <h1>Car Watch</h1>
-  <p class="meta">${cars.length} found so far · newest first · refresh anytime</p>
+  <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime</p>
+  ${renderFilterForm(allCars, filters)}
   ${
     cars.length === 0
-      ? `<p class="empty">Nothing found yet — check back after the next scheduled run.</p>`
+      ? `<p class="empty">${allCars.length === 0 ? "Nothing found yet — check back after the next scheduled run." : "No results match these filters."}</p>`
       : `<div class="table-wrap"><table>
     <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -137,8 +230,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  res.end(renderPage());
+  res.end(renderPage(url));
 });
 
 server.listen(PORT, () => {
