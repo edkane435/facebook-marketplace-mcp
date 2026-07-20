@@ -1,7 +1,7 @@
-// Core check logic — checks every saved monitor (Facebook + Auto.dev),
-// persists new listings to cars.csv, and emails a digest if anything new
-// turned up. Shared by the CLI entry point (scripts/daily-car-check.ts) and
-// the web server's internal scheduler (src/web/server.ts).
+// Core check logic — checks every saved monitor (Facebook + Auto.dev) and
+// persists new listings to cars.csv. Shared by the CLI entry point
+// (scripts/daily-car-check.ts) and the web server's internal scheduler
+// (src/web/server.ts).
 import { FacebookClient } from "./facebook/client.js";
 import { loadMonitors, updateMonitorSeenIds } from "./storage/monitors.js";
 import {
@@ -12,7 +12,6 @@ import {
 import { searchAutoDevListings } from "./autodev/client.js";
 import { classifyByPrice } from "./autodev/deal-filter.js";
 import { appendFoundCars, clearFoundCars } from "./storage/found-cars.js";
-import { loadEmailConfigFromEnv, sendDigestEmail } from "./email/send.js";
 import { acquireLock, releaseLock } from "./utils/lock.js";
 import type { MarketplaceListing } from "./facebook/types.js";
 
@@ -115,9 +114,9 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
       }));
 
       // Every classified listing (including "bad" tier) is stored so the
-      // web UI shows the full picture — but the email digest below only
-      // ever sees great/good tier entries via newByMonitor, so alerts stay
-      // focused on things actually worth a look.
+      // web UI shows the full picture — but only great/good tier entries
+      // are returned via newByMonitor, so the printed digest stays focused
+      // on things actually worth a look.
       appendFoundCars(monitor.name, asListings);
 
       const alertWorthy = asListings.filter((l) => l.priceTier !== "bad");
@@ -174,8 +173,6 @@ export async function runDailyCheck(): Promise<void> {
     return;
   }
 
-  const emailConfig = loadEmailConfigFromEnv();
-
   try {
     const { newByMonitor, warnings } = await runChecks();
     const totalNew = [...newByMonitor.values()].reduce(
@@ -193,35 +190,9 @@ export async function runDailyCheck(): Promise<void> {
       ? `${digest}\n\n${warnings.join("\n")}`
       : digest;
     console.log(fullText);
-
-    if (emailConfig) {
-      await sendDigestEmail(
-        emailConfig,
-        `Car watch: ${totalNew} new listing(s)`,
-        fullText
-      );
-      console.log(`\nEmailed digest to ${emailConfig.to}.`);
-    } else {
-      console.log(
-        "\nRESEND_API_KEY/EMAIL_TO not set in .env — skipped email, printed digest above instead."
-      );
-    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("Car check failed:", message);
-
-    if (emailConfig) {
-      await sendDigestEmail(
-        emailConfig,
-        "Car watch: check failed",
-        `The daily car check failed and needs attention:\n\n${message}\n\n` +
-          "This is usually an expired FB_COOKIE_HEADER — grab a fresh one from " +
-          "Chrome DevTools and update .env."
-      ).catch((emailError) => {
-        console.error("Also failed to send failure alert email:", emailError);
-      });
-    }
-
     process.exitCode = 1;
   } finally {
     releaseLock();

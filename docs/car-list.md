@@ -81,11 +81,12 @@ cars for the telluride monitor."
 
 **Unattended, on a schedule** — no Chrome, no agent loop, no macOS
 required. `npm run daily-check` does the same check-and-persist as above
-but as a standalone script, and emails you a digest instead of replying in
-chat. See the README's "Running unattended" section for the `.env` setup
-(a manual Facebook cookie header + Gmail SMTP App Password). This is the
-one to point a cron job or a Claude Routine at for a true "runs once a day,
-emails me" setup.
+but as a standalone script that prints a digest of new listings to stdout
+instead of replying in chat. See the README's "Running unattended" section
+for the `.env` setup (a manual Facebook cookie header). This is the one to
+point a cron job or a Claude Routine at, or just check the web UI
+(`npm run serve`) any time — it runs the same check on its own daily
+schedule and shows everything found in a browsable, filterable page.
 
 Either way, everything lands in the same `~/.fb-marketplace/cars.csv`, so
 you can also just open that file directly in Excel/Numbers/a text editor

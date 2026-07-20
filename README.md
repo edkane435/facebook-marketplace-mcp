@@ -118,10 +118,10 @@ what counts as a good deal.
 ### Running unattended (no MCP client, no Chrome/Keychain)
 
 `npm run daily-check` (`scripts/daily-car-check.ts`) checks every saved
-monitor and emails a digest of new listings — no MCP client or agent loop
-required, so it can run on a schedule (cron, a Claude Routine, etc.) on any
-host, including ones without Chrome or macOS Keychain. It needs a `.env`
-file (copy `.env.example`) with:
+monitor and prints a digest of new listings to stdout — no MCP client or
+agent loop required, so it can run on a schedule (cron, a Claude Routine,
+etc.) on any host, including ones without Chrome or macOS Keychain. It
+needs a `.env` file (copy `.env.example`) with:
 
 - `FB_COOKIE_HEADER` — a raw Facebook cookie header copied from Chrome
   DevTools (Network tab → any facebook.com request → `cookie` request
@@ -142,20 +142,13 @@ file (copy `.env.example`) with:
   `docs/car-list.md`), so this peer-comparison is a rough, free stand-in —
   a starting point for eyeballing, not a verdict. All three tiers are
   stored and shown in the web UI (filterable, with a colored badge per
-  row); only Great/Good make it into the email digest so alerts stay
+  row); only Great/Good make it into the printed digest so it stays
   focused on things actually worth a look. Tunable in
   `src/autodev/deal-filter.ts` (`DEFAULT_PRICE_TIER_OPTIONS`) if you want a
   different mileage cap or thresholds.
-- `RESEND_API_KEY` / `EMAIL_TO` — sends the digest via
-  [Resend](https://resend.com)'s HTTP API rather than raw SMTP. This
-  matters on most cloud hosts (Railway included): outbound SMTP ports are
-  blocked by default as an anti-spam measure, so an SMTP-based sender just
-  hangs and times out there regardless of correct credentials — an HTTP
-  API on port 443 sidesteps that entirely.
 
-If `RESEND_API_KEY`/`EMAIL_TO` aren't set, it just prints the digest to
-stdout instead of emailing. If the check itself fails (most likely an
-expired cookie), it emails an alert saying so instead of failing silently.
+If the check itself fails (most likely an expired cookie), the error is
+printed to stderr and the process exits non-zero.
 
 ### Web UI (`npm run serve`)
 
@@ -190,10 +183,9 @@ it ever crashes — this is a persistent service, not a one-shot job.
    without one, `monitors.json`/`cars.csv` get wiped on every redeploy and
    every listing looks "new" again.
 3. **Variables tab**, set:
-   - `FB_COOKIE_HEADER`, `RESEND_API_KEY`, `EMAIL_TO` (same as the `.env`
-     values above — set as real env vars here instead, no `.env` file
-     needed on Railway). Omit `FB_COOKIE_HEADER` and set `SKIP_FACEBOOK=true`
-     to run Auto.dev-only.
+   - `FB_COOKIE_HEADER` (same as the `.env` value above — set as a real env
+     var here instead, no `.env` file needed on Railway). Omit it and set
+     `SKIP_FACEBOOK=true` to run Auto.dev-only.
    - `AUTODEV_API_KEY` (optional — omit to skip the Auto.dev source)
    - `FB_MARKETPLACE_HOME` = the volume's mount path (e.g. `/data`), so
      persisted state lands on the volume instead of the ephemeral
@@ -217,7 +209,6 @@ up, but Railway's default Node builder normally includes what it needs.
 | `FB_COOKIE_HEADER` | — | Manual Facebook cookie header, bypasses Chrome/Keychain extraction when set |
 | `FB_MARKETPLACE_HOME` | `~/.fb-marketplace` | Where monitors/found-cars state is stored — point this at a mounted volume on hosts with an ephemeral filesystem |
 | `AUTODEV_API_KEY` | — | Auto.dev Vehicle Listings API key — optional second data source, skipped entirely if unset |
-| `RESEND_API_KEY` / `EMAIL_TO` / `EMAIL_FROM` | — | Resend HTTP API credentials for `daily-check`'s digest email (`EMAIL_FROM` optional, defaults to Resend's shared sender) |
 | `SKIP_FACEBOOK` | — | Set to `true` to skip the Facebook check entirely (Auto.dev-only) |
 | `MAX_MONITORS` | — | Testing knob — only check the first N monitors of each source |
 | `PORT` | `3000` | Port `npm run serve` listens on (Railway sets this automatically) |
