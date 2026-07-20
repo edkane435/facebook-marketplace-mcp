@@ -134,14 +134,18 @@ file (copy `.env.example`) with:
   list's monitors use well under that. Leave unset to skip it — Facebook
   checks still run fine on their own.
 
-  Auto.dev results are filtered before anything gets reported: mileage
-  1-20,000 (excludes new-dealer-stock and anything over that cap), then
-  only listings priced at least 10% below the median price of comparable
-  results in the same batch survive. There's no cheap automated valuation
-  API to compare against (see `docs/car-list.md`), so this peer-comparison
-  is a rough, free stand-in — a pre-filter to cut noise, not a verdict.
-  Tunable in `src/autodev/deal-filter.ts` (`DEFAULT_DEAL_FILTER`) if you
-  want a different mileage cap or discount threshold.
+  Every Auto.dev listing with mileage 0-20,000 gets classified into one of
+  three price tiers by comparing it to the median price of comparable
+  results in the same batch: **Great** (20%+ below median), **Good** (8-20%
+  below median), or **Bad** (anything else, including batches too small to
+  judge). There's no cheap automated valuation API to compare against (see
+  `docs/car-list.md`), so this peer-comparison is a rough, free stand-in —
+  a starting point for eyeballing, not a verdict. All three tiers are
+  stored and shown in the web UI (filterable, with a colored badge per
+  row); only Great/Good make it into the email digest so alerts stay
+  focused on things actually worth a look. Tunable in
+  `src/autodev/deal-filter.ts` (`DEFAULT_PRICE_TIER_OPTIONS`) if you want a
+  different mileage cap or thresholds.
 - `RESEND_API_KEY` / `EMAIL_TO` — sends the digest via
   [Resend](https://resend.com)'s HTTP API rather than raw SMTP. This
   matters on most cloud hosts (Railway included): outbound SMTP ports are
@@ -163,7 +167,7 @@ needed. One process, one shared volume, nothing to keep in sync across
 services.
 
 - `GET /` — the car list page, with filters (price range, location,
-  vehicle type) as query params, and two buttons:
+  vehicle type, price rating) as query params, and two buttons:
   - **Check now** (`POST /check-now`) — runs the check on demand instead
     of waiting for the daily schedule
   - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and

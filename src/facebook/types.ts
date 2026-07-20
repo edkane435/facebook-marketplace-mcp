@@ -28,6 +28,9 @@ export interface MarketplaceListing {
   postedDate: string;
   url: string;
   isPending: boolean;
+  // Auto.dev-only: peer-comparison price classification (see
+  // src/autodev/deal-filter.ts). Unset for Facebook listings.
+  priceTier?: "great" | "good" | "bad";
 }
 
 export interface MarketplaceListingDetail extends MarketplaceListing {

@@ -1,17 +1,28 @@
 import type { AutoDevListing } from "./client.js";
 
-export interface DealFilterOptions {
-  minMileage: number;
-  maxMileage: number;
-  // Keep a listing if its price is at least this fraction below the median
-  // price of the other candidates in the same batch (same make/model call).
-  discountPct: number;
+export type PriceTier = "great" | "good" | "bad";
+
+export interface ClassifiedListing extends AutoDevListing {
+  priceTier: PriceTier;
+  // Negative = below peer median (cheaper), positive = above. Null when
+  // there weren't enough comparable listings in the batch to judge.
+  pctVsMedian: number | null;
 }
 
-export const DEFAULT_DEAL_FILTER: DealFilterOptions = {
+export interface PriceTierOptions {
+  minMileage: number;
+  maxMileage: number;
+  // Below this fraction under the peer median -> "great"
+  greatThresholdPct: number;
+  // Below this fraction under the peer median (but not "great") -> "good"
+  goodThresholdPct: number;
+}
+
+export const DEFAULT_PRICE_TIER_OPTIONS: PriceTierOptions = {
   minMileage: 0,
   maxMileage: 20000,
-  discountPct: 0.1,
+  greatThresholdPct: 0.2,
+  goodThresholdPct: 0.08,
 };
 
 function median(nums: number[]): number {
@@ -24,14 +35,14 @@ function median(nums: number[]): number {
 
 // Not a real appraisal — there's no cheap automated valuation source wired
 // in (see docs/car-list.md for why KBB/Edmunds aren't automated here). This
-// flags listings priced notably below the median of *other comparable
+// classifies each listing against the median price of *other comparable
 // results in the same batch* as a rough, free stand-in. Small sample sizes
-// (a handful of listings per make/model) make this noisy; treat it as a
-// pre-filter to reduce what you have to eyeball, not a verdict.
-export function filterToGoodDeals(
+// (a handful of listings per make/model) make this noisy — treat the tier
+// as a starting point for eyeballing, not a verdict.
+export function classifyByPrice(
   listings: AutoDevListing[],
-  options: DealFilterOptions = DEFAULT_DEAL_FILTER
-): AutoDevListing[] {
+  options: PriceTierOptions = DEFAULT_PRICE_TIER_OPTIONS
+): ClassifiedListing[] {
   const candidates = listings.filter(
     (l) =>
       l.used &&
@@ -42,16 +53,24 @@ export function filterToGoodDeals(
   );
 
   if (candidates.length < 3) {
-    // Not enough comparable listings in this batch to judge "below median"
-    // meaningfully — return the mileage-filtered set as-is.
-    return candidates;
+    // Not enough comparable listings in this batch to judge against —
+    // label everything "bad" rather than pretending confidence either way.
+    return candidates.map((l) => ({ ...l, priceTier: "bad", pctVsMedian: null }));
   }
 
   const prices = candidates
     .map((l) => l.priceValue)
     .filter((p): p is number => p != null);
   const peerMedian = median(prices);
-  const ceiling = peerMedian * (1 - options.discountPct);
 
-  return candidates.filter((l) => l.priceValue != null && l.priceValue <= ceiling);
+  return candidates.map((l) => {
+    const pct = (l.priceValue! - peerMedian) / peerMedian;
+    const priceTier: PriceTier =
+      pct <= -options.greatThresholdPct
+        ? "great"
+        : pct <= -options.goodThresholdPct
+          ? "good"
+          : "bad";
+    return { ...l, priceTier, pctVsMedian: pct };
+  });
 }

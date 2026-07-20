@@ -16,6 +16,7 @@ const COLUMNS = [
   "posted_date",
   "date_found",
   "url",
+  "price_tier",
 ] as const;
 
 export interface FoundCar {
@@ -27,6 +28,7 @@ export interface FoundCar {
   postedDate: string;
   dateFound: string;
   url: string;
+  priceTier: string;
 }
 
 function ensureStorageDir() {
@@ -99,6 +101,7 @@ export function appendFoundCars(
         listing.postedDate,
         dateFound,
         listing.url,
+        listing.priceTier ?? "",
       ]
         .map(csvField)
         .join(",")
@@ -119,9 +122,10 @@ export function loadFoundCars(monitorName?: string): FoundCar[] {
 
   const [, ...rows] = raw.split("\n");
   const cars = rows.map((row) => {
-    const [monitor, title, price, location, seller, postedDate, dateFound, url] =
+    const [monitor, title, price, location, seller, postedDate, dateFound, url, priceTier] =
       parseCsvLine(row);
-    return { monitor, title, price, location, seller, postedDate, dateFound, url };
+    // priceTier is undefined for rows written before this column existed.
+    return { monitor, title, price, location, seller, postedDate, dateFound, url, priceTier: priceTier ?? "" };
   });
 
   return monitorName ? cars.filter((c) => c.monitor === monitorName) : cars;

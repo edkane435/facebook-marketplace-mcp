@@ -10,7 +10,7 @@ import {
   resetAllSeenVins,
 } from "./storage/autodev-monitors.js";
 import { searchAutoDevListings } from "./autodev/client.js";
-import { filterToGoodDeals } from "./autodev/deal-filter.js";
+import { classifyByPrice } from "./autodev/deal-filter.js";
 import { appendFoundCars, clearFoundCars } from "./storage/found-cars.js";
 import { loadEmailConfigFromEnv, sendDigestEmail } from "./email/send.js";
 import { acquireLock, releaseLock } from "./utils/lock.js";
@@ -82,16 +82,16 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
   for (const monitor of monitors) {
     const listings = await searchAutoDevListings({ apiKey, ...monitor.params });
 
-    // Mark every VIN seen this run — including ones that don't clear the
-    // deal filter — so a listing that's not a deal today doesn't keep
-    // showing up as "noise" on every future run just because it's still
-    // listed. (Tradeoff: if it later drops in price into deal territory,
-    // it won't re-surface since it's already marked seen — same limitation
-    // the Facebook side has; no price-history tracking here yet.)
+    // Mark every VIN seen this run — including "bad" tier ones — so a
+    // listing doesn't keep showing up as "noise" on every future run just
+    // because it's still listed. (Tradeoff: if it later drops in price
+    // into a better tier, it won't re-surface since it's already marked
+    // seen — same limitation the Facebook side has; no price-history
+    // tracking here yet.)
     const allVins = listings.map((l) => l.vin).filter(Boolean);
 
-    const goodDeals = filterToGoodDeals(listings);
-    const newListings = goodDeals.filter(
+    const classified = classifyByPrice(listings);
+    const newListings = classified.filter(
       (l) => l.vin && !monitor.seenVins.includes(l.vin)
     );
 
@@ -111,10 +111,19 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
         // indistinguishable once read back. This delimiter survives intact.
         url: l.carfaxUrl ? `${l.url} | Carfax: ${l.carfaxUrl}` : l.url,
         isPending: false,
+        priceTier: l.priceTier,
       }));
 
+      // Every classified listing (including "bad" tier) is stored so the
+      // web UI shows the full picture — but the email digest below only
+      // ever sees great/good tier entries via newByMonitor, so alerts stay
+      // focused on things actually worth a look.
       appendFoundCars(monitor.name, asListings);
-      newByMonitor.set(monitor.name, asListings);
+
+      const alertWorthy = asListings.filter((l) => l.priceTier !== "bad");
+      if (alertWorthy.length > 0) {
+        newByMonitor.set(monitor.name, alertWorthy);
+      }
     }
   }
 

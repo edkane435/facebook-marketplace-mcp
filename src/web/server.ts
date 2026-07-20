@@ -60,6 +60,7 @@ interface Filters {
   maxPrice?: number;
   location: string;
   type: string;
+  tier: string;
 }
 
 function parseFilters(url: URL): Filters {
@@ -70,12 +71,14 @@ function parseFilters(url: URL): Filters {
     maxPrice: maxPriceRaw ? Number(maxPriceRaw) : undefined,
     location: url.searchParams.get("location")?.trim() ?? "",
     type: url.searchParams.get("type")?.trim() ?? "",
+    tier: url.searchParams.get("tier")?.trim() ?? "",
   };
 }
 
 function applyFilters(cars: FoundCar[], filters: Filters): FoundCar[] {
   return cars.filter((c) => {
     if (filters.type && c.monitor !== filters.type) return false;
+    if (filters.tier && c.priceTier !== filters.tier) return false;
 
     if (filters.location) {
       if (!c.location.toLowerCase().includes(filters.location.toLowerCase())) {
@@ -92,6 +95,16 @@ function applyFilters(cars: FoundCar[], filters: Filters): FoundCar[] {
 
     return true;
   });
+}
+
+// Human label + CSS class for a stored price_tier value. Legacy rows (from
+// before this column existed, or Facebook rows which never get one) are ""
+// and just render with no badge at all.
+function renderTierBadge(tier: string): string {
+  if (tier === "great") return `<span class="tier tier-great">Great price</span>`;
+  if (tier === "good") return `<span class="tier tier-good">Good price</span>`;
+  if (tier === "bad") return `<span class="tier tier-bad">Bad price</span>`;
+  return "";
 }
 
 // "f150-autodev" -> "F150 Autodev" — just for the dropdown label, filtering
@@ -136,11 +149,24 @@ function renderFilterForm(allCars: FoundCar[], filters: Filters): string {
     )
     .join("");
 
+  const tiers: Array<{ value: string; label: string }> = [
+    { value: "great", label: "Great price" },
+    { value: "good", label: "Good price" },
+    { value: "bad", label: "Bad price" },
+  ];
+  const tierOptions = tiers
+    .map(
+      (t) =>
+        `<option value="${t.value}" ${filters.tier === t.value ? "selected" : ""}>${t.label}</option>`
+    )
+    .join("");
+
   return `<form class="filters" method="get" action="/">
     <label>Min $ <input type="number" name="minPrice" value="${filters.minPrice ?? ""}" placeholder="0" inputmode="numeric"></label>
     <label>Max $ <input type="number" name="maxPrice" value="${filters.maxPrice ?? ""}" placeholder="any" inputmode="numeric"></label>
     <label>Location <input type="text" name="location" value="${escapeHtml(filters.location)}" placeholder="e.g. NJ"></label>
     <label>Type <select name="type"><option value="">All</option>${options}</select></label>
+    <label>Price <select name="tier"><option value="">All</option>${tierOptions}</select></label>
     <button type="submit">Filter</button>
     <a class="clear" href="/">Clear</a>
   </form>`;
@@ -159,6 +185,7 @@ function renderPage(url: URL): string {
       <td class="nowrap">${escapeHtml(c.monitor)}</td>
       <td>${escapeHtml(c.title)}</td>
       <td class="nowrap">${escapeHtml(c.price)}</td>
+      <td>${renderTierBadge(c.priceTier)}</td>
       <td>${escapeHtml(c.location)}</td>
       <td>${escapeHtml(c.seller)}</td>
       <td>${renderLinks(c.url)}</td>
@@ -218,6 +245,18 @@ function renderPage(url: URL): string {
   a:hover { text-decoration: underline; }
   .nowrap { white-space: nowrap; }
   .empty { opacity: 0.6; padding: 2rem 0; }
+  .tier {
+    display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+  }
+  .tier-great { background: #14532d; color: #86efac; }
+  .tier-good { background: #1e3a5f; color: #93c5fd; }
+  .tier-bad { background: #3f3f46; color: #a1a1aa; }
+  @media (prefers-color-scheme: light) {
+    .tier-great { background: #dcfce7; color: #166534; }
+    .tier-good { background: #dbeafe; color: #1e40af; }
+    .tier-bad { background: #f4f4f5; color: #52525b; }
+  }
 </style>
 </head>
 <body>
@@ -232,7 +271,7 @@ function renderPage(url: URL): string {
     cars.length === 0
       ? `<p class="empty">${allCars.length === 0 ? "Nothing found yet — check back after the next scheduled run." : "No results match these filters."}</p>`
       : `<div class="table-wrap"><table>
-    <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
+    <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Rating</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`
   }
