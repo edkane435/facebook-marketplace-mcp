@@ -2,17 +2,21 @@
 // process (and therefore the same mounted volume) rather than needing a
 // second Railway service — Railway volumes are tied to one service, so
 // this sidesteps needing to share one across two.
+import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnvFile } from "../utils/env.js";
 import type { FoundCar } from "../storage/found-cars.js";
+import type { SavedAutoDevMonitor } from "../storage/autodev-monitors.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadEnvFile(path.join(__dirname, "..", "..", ".env"));
 
 const { runDailyCheck, clearAllData } = await import("../check-runner.js");
 const { loadFoundCars } = await import("../storage/found-cars.js");
+const { loadAutoDevMonitors, addAutoDevMonitor, deleteAutoDevMonitor } =
+  await import("../storage/autodev-monitors.js");
 
 const PORT = Number(process.env.PORT) || 3000;
 const CHECK_HOUR_UTC = Number(process.env.DAILY_CHECK_HOUR_UTC ?? 13);
@@ -39,6 +43,57 @@ console.log(
   `Scheduled to check daily at ${String(CHECK_HOUR_UTC).padStart(2, "0")}:` +
     `${String(CHECK_MINUTE_UTC).padStart(2, "0")} UTC.`
 );
+
+function readFormBody(req: http.IncomingMessage): Promise<URLSearchParams> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      // A form this small should never approach this — bail out rather
+      // than let a misbehaving client buffer unbounded memory.
+      if (body.length > 10_000) req.destroy();
+    });
+    req.on("end", () => resolve(new URLSearchParams(body)));
+    req.on("error", reject);
+  });
+}
+
+// "GMC" + "Yukon" -> "gmc-yukon-autodev". Matches the "-autodev" suffix the
+// UI's type filter and dropdown already key off of.
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildAutoDevMonitorName(make: string, model: string): string {
+  return `${slugify(make)}-${slugify(model)}-autodev`;
+}
+
+// zip/distanceMiles for a newly-added car: reuse whatever an existing
+// monitor already uses (so a new search stays consistent with the rest of
+// the list), falling back to the config file's defaults only if every
+// monitor has been removed and there's nothing left to copy from.
+function getAutoDevSearchDefaults(monitors: SavedAutoDevMonitor[]): {
+  zip: string;
+  distanceMiles: number;
+} {
+  if (monitors.length > 0) {
+    return { zip: monitors[0].params.zip, distanceMiles: monitors[0].params.distanceMiles };
+  }
+  try {
+    const configPath = path.join(__dirname, "..", "..", "config", "car-list.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    return {
+      zip: config.autodev?.zip ?? "19382",
+      distanceMiles: config.autodev?.distance_miles ?? 65,
+    };
+  } catch {
+    return { zip: "19382", distanceMiles: 65 };
+  }
+}
 
 function escapeHtml(value: string): string {
   return value.replace(
@@ -172,10 +227,40 @@ function renderFilterForm(allCars: FoundCar[], filters: Filters): string {
   </form>`;
 }
 
+function renderManageSearches(monitors: SavedAutoDevMonitor[]): string {
+  const rows = monitors
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(
+      (m) => `
+    <li>
+      <span>${escapeHtml(prettyMonitorLabel(m.name))} <small>(${escapeHtml(m.params.make)} ${escapeHtml(m.params.model)})</small></span>
+      <form method="post" action="/remove-car" onsubmit="return confirm('Stop searching for ${escapeHtml(m.params.make)} ${escapeHtml(m.params.model)}?');">
+        <input type="hidden" name="monitor" value="${escapeHtml(m.name)}">
+        <button class="remove-car" type="submit">Remove</button>
+      </form>
+    </li>`
+    )
+    .join("");
+
+  return `<details class="manage">
+    <summary>Manage searches (${monitors.length})</summary>
+    <form class="add-car" method="post" action="/add-car">
+      <label>Make <input type="text" name="make" placeholder="e.g. Honda" required></label>
+      <label>Model <input type="text" name="model" placeholder="e.g. Pilot" required></label>
+      <button type="submit">Add car</button>
+    </form>
+    <ul class="monitor-list">${rows || "<li><em>No searches yet.</em></li>"}</ul>
+  </details>`;
+}
+
 function renderPage(url: URL): string {
   const allCars = loadFoundCars().slice().reverse(); // newest first
   const filters = parseFilters(url);
   const cars = applyFilters(allCars, filters);
+  const monitors = loadAutoDevMonitors();
+  const notice = url.searchParams.get("notice")?.trim() ?? "";
+  const error = url.searchParams.get("error")?.trim() ?? "";
 
   const rows = cars
     .map(
@@ -257,15 +342,55 @@ function renderPage(url: URL): string {
     .tier-good { background: #dbeafe; color: #1e40af; }
     .tier-bad { background: #f4f4f5; color: #52525b; }
   }
+  .notice { padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.85rem; margin: 0 0 1rem; }
+  .notice-ok { background: #14532d; color: #86efac; }
+  .notice-error { background: #7f1d1d; color: #fecaca; }
+  @media (prefers-color-scheme: light) {
+    .notice-ok { background: #dcfce7; color: #166534; }
+    .notice-error { background: #fee2e2; color: #991b1b; }
+  }
+  .manage {
+    margin-bottom: 1.25rem; padding: 0.75rem; border: 1px solid #2a2d35; border-radius: 8px;
+  }
+  .manage summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+  .add-car {
+    display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; margin: 0.85rem 0 1rem;
+  }
+  .add-car label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; opacity: 0.8; }
+  .add-car input {
+    background: #16181d; color: inherit; border: 1px solid #383b44; border-radius: 6px;
+    padding: 0.4rem 0.5rem; font-size: 0.85rem;
+  }
+  .add-car button {
+    background: #0284c7; color: #fff; border: none; border-radius: 6px;
+    padding: 0.45rem 0.9rem; font-size: 0.85rem; cursor: pointer;
+  }
+  .monitor-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+  .monitor-list li {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+    padding: 0.4rem 0.6rem; border: 1px solid #2a2d35; border-radius: 6px; font-size: 0.82rem;
+  }
+  .monitor-list small { opacity: 0.6; }
+  .remove-car {
+    background: #b91c1c; color: #fff; border: none; border-radius: 6px;
+    padding: 0.3rem 0.6rem; font-size: 0.75rem; cursor: pointer;
+  }
+  @media (prefers-color-scheme: light) {
+    .add-car input { background: #fff !important; color: #16181d !important; border-color: #ccc !important; }
+    .monitor-list li { border-color: #e2e2e2 !important; }
+  }
 </style>
 </head>
 <body>
   <h1>Car Watch</h1>
   <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime</p>
+  ${notice ? `<p class="notice notice-ok">${escapeHtml(notice)}</p>` : ""}
+  ${error ? `<p class="notice notice-error">${escapeHtml(error)}</p>` : ""}
   <div class="actions">
     <form method="post" action="/check-now"><button class="check-now" type="submit">Check now</button></form>
     <form method="post" action="/clear-all" onsubmit="return confirm('Clear all found cars and start fresh?');"><button class="clear-all" type="submit">Clear all &amp; start fresh</button></form>
   </div>
+  ${renderManageSearches(monitors)}
   ${renderFilterForm(allCars, filters)}
   ${
     cars.length === 0
@@ -302,6 +427,47 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/clear-all") {
     clearAllData();
     res.writeHead(302, { Location: "/" });
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/add-car") {
+    const form = await readFormBody(req);
+    const make = form.get("make")?.trim() ?? "";
+    const model = form.get("model")?.trim() ?? "";
+
+    let redirect = "/";
+    if (!make || !model) {
+      redirect = "/?" + new URLSearchParams({ error: "Make and model are required." });
+    } else {
+      const name = buildAutoDevMonitorName(make, model);
+      try {
+        const defaults = getAutoDevSearchDefaults(loadAutoDevMonitors());
+        addAutoDevMonitor(name, { make, model, ...defaults });
+        redirect = "/?" + new URLSearchParams({ notice: `Added ${make} ${model} — it'll show up after the next check.` });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        redirect = "/?" + new URLSearchParams({ error: message });
+      }
+    }
+
+    res.writeHead(302, { Location: redirect });
+    res.end();
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/remove-car") {
+    const form = await readFormBody(req);
+    const monitor = form.get("monitor")?.trim() ?? "";
+    const removed = monitor ? deleteAutoDevMonitor(monitor) : false;
+    const redirect =
+      "/?" +
+      new URLSearchParams(
+        removed
+          ? { notice: `Removed ${monitor}. Past listings stay in the table below.` }
+          : { error: `Couldn't find a search named "${monitor}".` }
+      );
+    res.writeHead(302, { Location: redirect });
     res.end();
     return;
   }

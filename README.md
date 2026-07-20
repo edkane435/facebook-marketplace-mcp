@@ -166,6 +166,12 @@ services.
   - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and
     Auto.dev seen-state, so the next check re-reports every current match
     with none of the old history (e.g. stale pre-fix links) left behind
+  - **Manage searches** (collapsible section) — add a car by make/model
+    (`POST /add-car`) or remove one (`POST /remove-car`), no config file
+    edit or redeploy needed. New/removed cars take effect on the next
+    check; removing one only stops future checks, it doesn't delete that
+    car's past listings from the table. This only manages the Auto.dev
+    side — Facebook search terms still come from `config/car-list.json`.
 - `GET /health` — plain `200 ok`, for platform health checks
 - `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` (optional, default
   `13`/`0` — i.e. 9am Eastern during daylight saving) — when the internal
@@ -173,10 +179,13 @@ services.
 
 ### Deploying to Railway
 
-`railway.json` runs `seed-car-list` (idempotent — safe every time, and
-prunes monitors no longer in `config/car-list.json`) then `npm run serve`
-on deploy, with `restartPolicyType: ON_FAILURE` so Railway restarts it if
-it ever crashes — this is a persistent service, not a one-shot job.
+`railway.json` runs `seed-car-list` then `npm run serve` on deploy, with
+`restartPolicyType: ON_FAILURE` so Railway restarts it if it ever crashes
+— this is a persistent service, not a one-shot job. `seed-car-list` only
+bootstraps Auto.dev monitors from `config/car-list.json` on a completely
+empty volume (first-ever deploy); once any exist, it leaves them alone on
+every later deploy so cars added/removed through the web UI aren't
+reset or re-added by the next redeploy.
 
 1. **New Project → Deploy from GitHub repo**, pick this repo/branch.
 2. **Add a Volume** to the service (any mount path, e.g. `/data`) —

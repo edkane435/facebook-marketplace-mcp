@@ -7,7 +7,6 @@ import { addMonitor, loadMonitors, deleteMonitor } from "../src/storage/monitors
 import {
   addAutoDevMonitor,
   loadAutoDevMonitors,
-  deleteAutoDevMonitor,
 } from "../src/storage/autodev-monitors.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,32 +72,32 @@ function main() {
   }
 
   if (config.autodev) {
-    const existingAutoDev = new Set(loadAutoDevMonitors().map((m) => m.name));
-    console.log(`\nSeeding Auto.dev monitors near ${config.autodev.zip}\n`);
+    const existingAutoDev = loadAutoDevMonitors();
 
-    for (const vehicle of config.autodev.vehicles) {
-      if (existingAutoDev.has(vehicle.monitor)) {
-        console.log(`skip  ${vehicle.monitor.padEnd(18)} (monitor already exists)`);
-        continue;
-      }
-
-      addAutoDevMonitor(vehicle.monitor, {
-        make: vehicle.make,
-        model: vehicle.model,
-        zip: config.autodev.zip,
-        distanceMiles: config.autodev.distance_miles,
-      });
-
+    // Auto.dev searches are managed live from the web UI's "Manage
+    // searches" panel (add-car/remove-car), and persisted on the volume —
+    // once there's at least one, this config file is no longer the source
+    // of truth, so don't add-missing or prune-extra against it (that would
+    // silently undo whatever the user configured through the UI on every
+    // redeploy). Only bootstrap from it on a genuinely empty volume.
+    if (existingAutoDev.length > 0) {
       console.log(
-        `added ${vehicle.monitor.padEnd(18)} "${vehicle.make} ${vehicle.model}" (${vehicle.class})`
+        `\nAuto.dev already has ${existingAutoDev.length} monitor(s) saved — skipping ` +
+          `config/car-list.json seeding (manage searches from the web UI instead).`
       );
-    }
+    } else {
+      console.log(`\nSeeding Auto.dev monitors near ${config.autodev.zip}\n`);
+      for (const vehicle of config.autodev.vehicles) {
+        addAutoDevMonitor(vehicle.monitor, {
+          make: vehicle.make,
+          model: vehicle.model,
+          zip: config.autodev.zip,
+          distanceMiles: config.autodev.distance_miles,
+        });
 
-    const wantedAutoDev = new Set(config.autodev.vehicles.map((v) => v.monitor));
-    for (const name of existingAutoDev) {
-      if (!wantedAutoDev.has(name)) {
-        deleteAutoDevMonitor(name);
-        console.log(`removed ${name.padEnd(17)} (no longer in car-list.json)`);
+        console.log(
+          `added ${vehicle.monitor.padEnd(18)} "${vehicle.make} ${vehicle.model}" (${vehicle.class})`
+        );
       }
     }
   }
