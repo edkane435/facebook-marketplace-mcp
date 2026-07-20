@@ -121,7 +121,14 @@ function renderLinks(url: string): string {
 }
 
 function renderFilterForm(allCars: FoundCar[], filters: Filters): string {
-  const types = [...new Set(allCars.map((c) => c.monitor))].sort();
+  // Facebook's disabled (SKIP_FACEBOOK=true) so its old monitor names
+  // (no "-autodev" suffix) never get new rows — only offer the active
+  // Auto.dev sources as filter options. Their historical rows can still
+  // show up in the unfiltered table; just not worth offering as a type
+  // to filter BY since selecting one only ever surfaces stale results.
+  const types = [...new Set(allCars.map((c) => c.monitor))]
+    .filter((t) => t.endsWith("-autodev"))
+    .sort();
   const options = types
     .map(
       (t) =>
