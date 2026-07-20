@@ -166,12 +166,17 @@ services.
   - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and
     Auto.dev seen-state, so the next check re-reports every current match
     with none of the old history (e.g. stale pre-fix links) left behind
-  - **Manage searches** (collapsible section) — add a car by make/model
-    (`POST /add-car`) or remove one (`POST /remove-car`), no config file
-    edit or redeploy needed. New/removed cars take effect on the next
-    check; removing one only stops future checks, it doesn't delete that
-    car's past listings from the table. This only manages the Auto.dev
-    side — Facebook search terms still come from `config/car-list.json`.
+  - **Manage searches** (collapsible section) — enter a make/model and hit
+    "Search to add" (`GET /search-car`) to preview live Auto.dev listings
+    for it before committing, so you can catch typos or confirm there's
+    actually inventory near you; "Add this search" (`POST /add-car`) then
+    saves it. Remove a search (`POST /remove-car`) any time. No config file
+    edit or redeploy needed either way — new/removed cars take effect on
+    the next check, and removing one only stops future checks, it doesn't
+    delete that car's past listings from the table. If `AUTODEV_API_KEY`
+    isn't set, the preview is skipped but adding still works. This only
+    manages the Auto.dev side — Facebook search terms still come from
+    `config/car-list.json`.
 - `GET /health` — plain `200 ok`, for platform health checks
 - `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` (optional, default
   `13`/`0` — i.e. 9am Eastern during daylight saving) — when the internal

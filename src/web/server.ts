@@ -17,6 +17,8 @@ const { runDailyCheck, clearAllData } = await import("../check-runner.js");
 const { loadFoundCars } = await import("../storage/found-cars.js");
 const { loadAutoDevMonitors, addAutoDevMonitor, deleteAutoDevMonitor } =
   await import("../storage/autodev-monitors.js");
+const { searchAutoDevListings } = await import("../autodev/client.js");
+type AutoDevListing = Awaited<ReturnType<typeof searchAutoDevListings>>[number];
 
 const PORT = Number(process.env.PORT) || 3000;
 const CHECK_HOUR_UTC = Number(process.env.DAILY_CHECK_HOUR_UTC ?? 13);
@@ -248,46 +250,60 @@ function renderManageSearches(monitors: SavedAutoDevMonitor[]): string {
 
   return `<details class="manage">
     <summary>Manage searches (${monitors.length})</summary>
-    <form class="add-car" method="post" action="/add-car">
+    <form class="add-car" method="get" action="/search-car">
       <label>Make <input type="text" name="make" placeholder="e.g. Honda" required></label>
       <label>Model <input type="text" name="model" placeholder="e.g. Pilot" required></label>
-      <button type="submit">Add car</button>
+      <button type="submit">Search to add</button>
     </form>
     <ul class="monitor-list">${rows || "<li><em>No searches yet.</em></li>"}</ul>
   </details>`;
 }
 
-function renderPage(url: URL): string {
-  const allCars = loadFoundCars().slice().reverse(); // newest first
-  const filters = parseFilters(url);
-  const cars = applyFilters(allCars, filters);
-  const monitors = loadAutoDevMonitors();
-  const notice = url.searchParams.get("notice")?.trim() ?? "";
-  const error = url.searchParams.get("error")?.trim() ?? "";
-
-  const rows = cars
+function renderSearchPage(
+  make: string,
+  model: string,
+  defaults: { zip: string; distanceMiles: number },
+  listings: AutoDevListing[],
+  errorMessage: string | null
+): string {
+  const rows = listings
+    .slice(0, 15)
     .map(
-      (c) => `
+      (l) => `
     <tr>
-      <td class="nowrap">${escapeHtml(c.dateFound.slice(0, 10))}</td>
-      <td class="nowrap">${escapeHtml(prettyMonitorLabel(c.monitor))}</td>
-      <td>${escapeHtml(c.title)}</td>
-      <td class="nowrap">${escapeHtml(c.price)}</td>
-      <td>${renderTierBadge(c.priceTier)}</td>
-      <td>${escapeHtml(c.location)}</td>
-      <td>${escapeHtml(c.seller)}</td>
-      <td>${renderLinks(c.url)}</td>
+      <td>${escapeHtml(l.title)}</td>
+      <td class="nowrap">${escapeHtml(l.price)}</td>
+      <td class="nowrap">${escapeHtml(l.mileage)}</td>
+      <td>${escapeHtml(l.location)}</td>
+      <td>${escapeHtml(l.dealer)}</td>
     </tr>`
     )
     .join("");
 
-  return `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Car Watch</title>
-<style>
+  const resultsHtml = errorMessage
+    ? `<p class="notice notice-error">Couldn't search Auto.dev: ${escapeHtml(errorMessage)}. You can still add it below — it'll just start showing results once the next check runs.</p>`
+    : listings.length === 0
+      ? `<p class="notice notice-error">No current listings found for ${escapeHtml(make)} ${escapeHtml(model)} within ${defaults.distanceMiles} mi of ${escapeHtml(defaults.zip)}. Could just be low inventory right now — you can still add it below.</p>`
+      : `<p class="preview-meta">${listings.length} current listing(s) found. Showing up to 15.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Title</th><th>Price</th><th>Mileage</th><th>Location</th><th>Dealer</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+
+  return pageShell(
+    `Search: ${make} ${model}`,
+    `  <a class="back-link" href="/">&larr; Back to Car Watch</a>
+  <h1>${escapeHtml(make)} ${escapeHtml(model)}</h1>
+  ${resultsHtml}
+  <form class="confirm-add" method="post" action="/add-car">
+    <input type="hidden" name="make" value="${escapeHtml(make)}">
+    <input type="hidden" name="model" value="${escapeHtml(model)}">
+    <button type="submit">Add this search</button>
+  </form>`
+  );
+}
+
+const PAGE_STYLES = `
   :root { color-scheme: dark light; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -382,10 +398,57 @@ function renderPage(url: URL): string {
     .add-car input { background: #fff !important; color: #16181d !important; border-color: #ccc !important; }
     .monitor-list li { border-color: #e2e2e2 !important; }
   }
-</style>
+  .back-link { display: inline-block; margin-bottom: 1rem; font-size: 0.85rem; }
+  .preview-meta { opacity: 0.7; font-size: 0.85rem; margin-bottom: 1rem; }
+  .confirm-add { margin-top: 1rem; }
+  .confirm-add button {
+    background: #16a34a; color: #fff; border: none; border-radius: 6px;
+    padding: 0.5rem 0.9rem; font-size: 0.85rem; cursor: pointer;
+  }
+`;
+
+function pageShell(title: string, bodyHtml: string): string {
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<style>${PAGE_STYLES}</style>
 </head>
 <body>
-  <h1>Car Watch</h1>
+${bodyHtml}
+</body>
+</html>`;
+}
+
+function renderPage(url: URL): string {
+  const allCars = loadFoundCars().slice().reverse(); // newest first
+  const filters = parseFilters(url);
+  const cars = applyFilters(allCars, filters);
+  const monitors = loadAutoDevMonitors();
+  const notice = url.searchParams.get("notice")?.trim() ?? "";
+  const error = url.searchParams.get("error")?.trim() ?? "";
+
+  const rows = cars
+    .map(
+      (c) => `
+    <tr>
+      <td class="nowrap">${escapeHtml(c.dateFound.slice(0, 10))}</td>
+      <td class="nowrap">${escapeHtml(prettyMonitorLabel(c.monitor))}</td>
+      <td>${escapeHtml(c.title)}</td>
+      <td class="nowrap">${escapeHtml(c.price)}</td>
+      <td>${renderTierBadge(c.priceTier)}</td>
+      <td>${escapeHtml(c.location)}</td>
+      <td>${escapeHtml(c.seller)}</td>
+      <td>${renderLinks(c.url)}</td>
+    </tr>`
+    )
+    .join("");
+
+  return pageShell(
+    "Car Watch",
+    `  <h1>Car Watch</h1>
   <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime</p>
   ${notice ? `<p class="notice notice-ok">${escapeHtml(notice)}</p>` : ""}
   ${error ? `<p class="notice notice-error">${escapeHtml(error)}</p>` : ""}
@@ -402,9 +465,8 @@ function renderPage(url: URL): string {
     <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Rating</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`
-  }
-</body>
-</html>`;
+  }`
+  );
 }
 
 const server = http.createServer(async (req, res) => {
@@ -431,6 +493,38 @@ const server = http.createServer(async (req, res) => {
     clearAllData();
     res.writeHead(302, { Location: "/" });
     res.end();
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/search-car") {
+    const make = url.searchParams.get("make")?.trim() ?? "";
+    const model = url.searchParams.get("model")?.trim() ?? "";
+
+    if (!make || !model) {
+      res.writeHead(302, {
+        Location: "/?" + new URLSearchParams({ error: "Make and model are required." }),
+      });
+      res.end();
+      return;
+    }
+
+    const defaults = getAutoDevSearchDefaults(loadAutoDevMonitors());
+    const apiKey = process.env.AUTODEV_API_KEY;
+
+    let listings: AutoDevListing[] = [];
+    let errorMessage: string | null = null;
+    if (!apiKey) {
+      errorMessage = "AUTODEV_API_KEY isn't set, so live listings can't be previewed";
+    } else {
+      try {
+        listings = await searchAutoDevListings({ apiKey, make, model, ...defaults });
+      } catch (err) {
+        errorMessage = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(renderSearchPage(make, model, defaults, listings, errorMessage));
     return;
   }
 
