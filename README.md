@@ -166,14 +166,18 @@ services.
   - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and
     Auto.dev seen-state, so the next check re-reports every current match
     with none of the old history (e.g. stale pre-fix links) left behind
-  - **Manage searches** (collapsible section) — enter a make/model and hit
+  - **Manage searches** (collapsible section) — enter a make and hit
     "Search to add" (`GET /search-car`) to preview live Auto.dev listings
-    for it before committing, so you can catch typos or confirm there's
-    actually inventory near you; "Add this search" (`POST /add-car`) then
-    saves it. Remove a search (`POST /remove-car`) any time. No config file
-    edit or redeploy needed either way — new/removed cars take effect on
-    the next check, and removing one only stops future checks, it doesn't
-    delete that car's past listings from the table. If `AUTODEV_API_KEY`
+    before committing. Leave Model blank to browse every model currently
+    listed under that make (grouped with a listing count and price range,
+    most common first, each with its own one-click Add) — handy when you
+    know you want "a Kia" but not which one yet. Fill in Model too for an
+    exact preview of just that model instead. Either way, "Add" / "Add
+    this search" (`POST /add-car`) saves it, and Remove (`POST
+    /remove-car`) drops it any time. No config file edit or redeploy
+    needed either way — new/removed cars take effect on the next check,
+    and removing one only stops future checks, it doesn't delete that
+    car's past listings from the table. If `AUTODEV_API_KEY`
     isn't set, the preview is skipped but adding still works. This only
     manages the Auto.dev side — Facebook search terms still come from
     `config/car-list.json`.

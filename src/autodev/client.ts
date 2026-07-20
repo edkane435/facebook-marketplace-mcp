@@ -10,6 +10,7 @@ const LISTINGS_URL = "https://api.auto.dev/listings";
 export interface AutoDevListing {
   vin: string;
   title: string;
+  model: string;
   price: string;
   priceValue: number | null;
   mileage: string;
@@ -25,7 +26,9 @@ export interface AutoDevListing {
 export interface AutoDevSearchParams {
   apiKey: string;
   make: string;
-  model: string;
+  // Omit to search every model for this make — used to browse what's
+  // available under a make before picking a specific one to track.
+  model?: string;
   zip: string;
   distanceMiles: number;
 }
@@ -35,7 +38,9 @@ export async function searchAutoDevListings(
 ): Promise<AutoDevListing[]> {
   const url = new URL(LISTINGS_URL);
   url.searchParams.set("vehicle.make", params.make);
-  url.searchParams.set("vehicle.model", params.model);
+  if (params.model) {
+    url.searchParams.set("vehicle.model", params.model);
+  }
   url.searchParams.set("zip", params.zip);
   url.searchParams.set("distance", String(params.distanceMiles));
 
@@ -86,6 +91,7 @@ export async function searchAutoDevListings(
     return {
       vin,
       title: title || "Unknown vehicle",
+      model: vehicle.model ?? "",
       price,
       priceValue,
       mileage,

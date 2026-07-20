@@ -252,7 +252,7 @@ function renderManageSearches(monitors: SavedAutoDevMonitor[]): string {
     <summary>Manage searches (${monitors.length})</summary>
     <form class="add-car" method="get" action="/search-car">
       <label>Make <input type="text" name="make" placeholder="e.g. Honda" required></label>
-      <label>Model <input type="text" name="model" placeholder="e.g. Pilot" required></label>
+      <label>Model <input type="text" name="model" placeholder="optional — blank browses all models"></label>
       <button type="submit">Search to add</button>
     </form>
     <ul class="monitor-list">${rows || "<li><em>No searches yet.</em></li>"}</ul>
@@ -299,6 +299,74 @@ function renderSearchPage(
     <input type="hidden" name="make" value="${escapeHtml(make)}">
     <input type="hidden" name="model" value="${escapeHtml(model)}">
     <button type="submit">Add this search</button>
+  </form>`
+  );
+}
+
+interface ModelGroup {
+  model: string;
+  count: number;
+  minPrice: number | null;
+  maxPrice: number | null;
+}
+
+function groupByModel(listings: AutoDevListing[]): ModelGroup[] {
+  const groups = new Map<string, ModelGroup>();
+  for (const l of listings) {
+    const key = l.model || "Unknown model";
+    const group = groups.get(key) ?? { model: key, count: 0, minPrice: null, maxPrice: null };
+    group.count++;
+    if (l.priceValue != null) {
+      group.minPrice = group.minPrice == null ? l.priceValue : Math.min(group.minPrice, l.priceValue);
+      group.maxPrice = group.maxPrice == null ? l.priceValue : Math.max(group.maxPrice, l.priceValue);
+    }
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count);
+}
+
+function renderMakeBrowsePage(
+  make: string,
+  defaults: { zip: string; distanceMiles: number },
+  listings: AutoDevListing[],
+  errorMessage: string | null
+): string {
+  const groups = groupByModel(listings);
+
+  const rows = groups
+    .map((g) => {
+      const priceRange =
+        g.minPrice != null
+          ? ` · $${g.minPrice.toLocaleString()}${g.maxPrice !== g.minPrice ? `–$${g.maxPrice!.toLocaleString()}` : ""}`
+          : "";
+      return `
+    <li>
+      <span>${escapeHtml(g.model)} <small>(${g.count} listing${g.count === 1 ? "" : "s"}${priceRange})</small></span>
+      <form method="post" action="/add-car">
+        <input type="hidden" name="make" value="${escapeHtml(make)}">
+        <input type="hidden" name="model" value="${escapeHtml(g.model)}">
+        <button class="add-model" type="submit">Add</button>
+      </form>
+    </li>`;
+    })
+    .join("");
+
+  const resultsHtml = errorMessage
+    ? `<p class="notice notice-error">Couldn't search Auto.dev: ${escapeHtml(errorMessage)}. Add the exact model directly below instead.</p>`
+    : groups.length === 0
+      ? `<p class="notice notice-error">No current ${escapeHtml(make)} listings found within ${defaults.distanceMiles} mi of ${escapeHtml(defaults.zip)}. Add the exact model directly below instead.</p>`
+      : `<p class="preview-meta">${groups.length} model(s) with current listings near you, most common first.</p>
+    <ul class="monitor-list">${rows}</ul>`;
+
+  return pageShell(
+    `Browse: ${make}`,
+    `  <a class="back-link" href="/">&larr; Back to Car Watch</a>
+  <h1>${escapeHtml(make)}</h1>
+  ${resultsHtml}
+  <form class="add-car" method="post" action="/add-car">
+    <input type="hidden" name="make" value="${escapeHtml(make)}">
+    <label>Know the exact model? <input type="text" name="model" placeholder="e.g. Telluride" required></label>
+    <button type="submit">Add</button>
   </form>`
   );
 }
@@ -392,6 +460,10 @@ const PAGE_STYLES = `
   .monitor-list small { opacity: 0.6; }
   .remove-car {
     background: #b91c1c; color: #fff; border: none; border-radius: 6px;
+    padding: 0.3rem 0.6rem; font-size: 0.75rem; cursor: pointer;
+  }
+  .add-model {
+    background: #16a34a; color: #fff; border: none; border-radius: 6px;
     padding: 0.3rem 0.6rem; font-size: 0.75rem; cursor: pointer;
   }
   @media (prefers-color-scheme: light) {
@@ -500,9 +572,9 @@ const server = http.createServer(async (req, res) => {
     const make = url.searchParams.get("make")?.trim() ?? "";
     const model = url.searchParams.get("model")?.trim() ?? "";
 
-    if (!make || !model) {
+    if (!make) {
       res.writeHead(302, {
-        Location: "/?" + new URLSearchParams({ error: "Make and model are required." }),
+        Location: "/?" + new URLSearchParams({ error: "Make is required." }),
       });
       res.end();
       return;
@@ -517,14 +589,25 @@ const server = http.createServer(async (req, res) => {
       errorMessage = "AUTODEV_API_KEY isn't set, so live listings can't be previewed";
     } else {
       try {
-        listings = await searchAutoDevListings({ apiKey, make, model, ...defaults });
+        // Leaving model blank asks Auto.dev for every model under this
+        // make, so it can be grouped into a browsable list below.
+        listings = await searchAutoDevListings({
+          apiKey,
+          make,
+          model: model || undefined,
+          ...defaults,
+        });
       } catch (err) {
         errorMessage = err instanceof Error ? err.message : String(err);
       }
     }
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(renderSearchPage(make, model, defaults, listings, errorMessage));
+    res.end(
+      model
+        ? renderSearchPage(make, model, defaults, listings, errorMessage)
+        : renderMakeBrowsePage(make, defaults, listings, errorMessage)
+    );
     return;
   }
 
