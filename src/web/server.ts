@@ -162,10 +162,13 @@ function renderTierBadge(tier: string): string {
   return "";
 }
 
-// "f150-autodev" -> "F150 Autodev" — just for the dropdown label, filtering
-// still matches on the exact monitor name.
+// "f150-autodev" -> "F150" — the "-autodev" suffix is an internal
+// implementation detail (all active searches are Auto.dev-sourced), not
+// something worth showing. Just cosmetic — filtering still matches on the
+// exact monitor name.
 function prettyMonitorLabel(monitor: string): string {
   return monitor
+    .replace(/-autodev$/, "")
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
@@ -234,7 +237,7 @@ function renderManageSearches(monitors: SavedAutoDevMonitor[]): string {
     .map(
       (m) => `
     <li>
-      <span>${escapeHtml(prettyMonitorLabel(m.name))} <small>(${escapeHtml(m.params.make)} ${escapeHtml(m.params.model)})</small></span>
+      <span>${escapeHtml(m.params.make)} ${escapeHtml(m.params.model)}</span>
       <form method="post" action="/remove-car" onsubmit="return confirm('Stop searching for ${escapeHtml(m.params.make)} ${escapeHtml(m.params.model)}?');">
         <input type="hidden" name="monitor" value="${escapeHtml(m.name)}">
         <button class="remove-car" type="submit">Remove</button>
@@ -267,7 +270,7 @@ function renderPage(url: URL): string {
       (c) => `
     <tr>
       <td class="nowrap">${escapeHtml(c.dateFound.slice(0, 10))}</td>
-      <td class="nowrap">${escapeHtml(c.monitor)}</td>
+      <td class="nowrap">${escapeHtml(prettyMonitorLabel(c.monitor))}</td>
       <td>${escapeHtml(c.title)}</td>
       <td class="nowrap">${escapeHtml(c.price)}</td>
       <td>${renderTierBadge(c.priceTier)}</td>
