@@ -521,12 +521,12 @@ function renderPage(url: URL): string {
   return pageShell(
     "Car Watch",
     `  <h1>Car Watch</h1>
-  <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime</p>
+  <p class="meta">${cars.length} of ${allCars.length} found · newest first · refresh anytime · sold/delisted cars are removed automatically after each check</p>
   ${notice ? `<p class="notice notice-ok">${escapeHtml(notice)}</p>` : ""}
   ${error ? `<p class="notice notice-error">${escapeHtml(error)}</p>` : ""}
   <div class="actions">
     <form method="post" action="/check-now"><button class="check-now" type="submit">Check now</button></form>
-    <form method="post" action="/clear-all" onsubmit="return confirm('Clear all found cars and start fresh?');"><button class="clear-all" type="submit">Clear all &amp; start fresh</button></form>
+    <form method="post" action="/clear-all" onsubmit="return confirm('This wipes EVERY found car, including ones still for sale — you shouldn\'t normally need this, since sold/delisted ones are already removed automatically. Really wipe everything and start over?');"><button class="clear-all" type="submit">Wipe everything &amp; start over</button></form>
   </div>
   ${renderManageSearches(monitors)}
   ${renderFilterForm(allCars, filters)}
