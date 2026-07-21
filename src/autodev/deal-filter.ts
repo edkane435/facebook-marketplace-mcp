@@ -20,7 +20,7 @@ export interface PriceTierOptions {
 
 export const DEFAULT_PRICE_TIER_OPTIONS: PriceTierOptions = {
   minMileage: 0,
-  maxMileage: 20000,
+  maxMileage: 60000,
   greatThresholdPct: 0.2,
   goodThresholdPct: 0.08,
 };
@@ -39,11 +39,21 @@ function median(nums: number[]): number {
 // results in the same batch* as a rough, free stand-in. Small sample sizes
 // (a handful of listings per make/model) make this noisy — treat the tier
 // as a starting point for eyeballing, not a verdict.
+//
+// Every input listing is always returned — mileage/used/price only decide
+// the *peer group* used to compute the comparison median, never whether a
+// listing gets shown at all. (This used to filter the returned list itself,
+// which silently hid every listing over the mileage cap — devastating for
+// trucks/SUVs that routinely exceed it even lightly used, while barely
+// affecting smaller cars; that's why some vehicle types appeared to have no
+// results at all.) A listing that isn't part of the peer group, or when
+// there aren't enough peers to judge against, just gets tier "bad" rather
+// than being dropped.
 export function classifyByPrice(
   listings: AutoDevListing[],
   options: PriceTierOptions = DEFAULT_PRICE_TIER_OPTIONS
 ): ClassifiedListing[] {
-  const candidates = listings.filter(
+  const peers = listings.filter(
     (l) =>
       l.used &&
       l.mileageValue != null &&
@@ -52,19 +62,13 @@ export function classifyByPrice(
       l.priceValue != null
   );
 
-  if (candidates.length < 3) {
-    // Not enough comparable listings in this batch to judge against —
-    // label everything "bad" rather than pretending confidence either way.
-    return candidates.map((l) => ({ ...l, priceTier: "bad", pctVsMedian: null }));
-  }
+  const peerMedian = peers.length >= 3 ? median(peers.map((l) => l.priceValue!)) : null;
 
-  const prices = candidates
-    .map((l) => l.priceValue)
-    .filter((p): p is number => p != null);
-  const peerMedian = median(prices);
-
-  return candidates.map((l) => {
-    const pct = (l.priceValue! - peerMedian) / peerMedian;
+  return listings.map((l) => {
+    if (peerMedian == null || l.priceValue == null) {
+      return { ...l, priceTier: "bad", pctVsMedian: null };
+    }
+    const pct = (l.priceValue - peerMedian) / peerMedian;
     const priceTier: PriceTier =
       pct <= -options.greatThresholdPct
         ? "great"

@@ -134,18 +134,25 @@ needs a `.env` file (copy `.env.example`) with:
   list's monitors use well under that. Leave unset to skip it — Facebook
   checks still run fine on their own.
 
-  Every Auto.dev listing with mileage 0-20,000 gets classified into one of
-  three price tiers by comparing it to the median price of comparable
-  results in the same batch: **Great** (20%+ below median), **Good** (8-20%
-  below median), or **Bad** (anything else, including batches too small to
-  judge). There's no cheap automated valuation API to compare against (see
-  `docs/car-list.md`), so this peer-comparison is a rough, free stand-in —
-  a starting point for eyeballing, not a verdict. All three tiers are
-  stored and shown in the web UI (filterable, with a colored badge per
-  row); only Great/Good make it into the printed digest so it stays
-  focused on things actually worth a look. Tunable in
-  `src/autodev/deal-filter.ts` (`DEFAULT_PRICE_TIER_OPTIONS`) if you want a
-  different mileage cap or thresholds.
+  Every Auto.dev listing gets classified into one of three price tiers by
+  comparing it to the median price of comparable (used, 0-60,000 mile,
+  priced) results in the same batch: **Great** (20%+ below median), **Good**
+  (8-20% below median), or **Bad** (anything else, including batches too
+  small to judge, or a listing outside that mileage/used comparison pool).
+  Every listing is always shown regardless of tier or mileage — the
+  0-60,000 range only decides which listings count as peers for computing
+  the comparison median, it never hides a listing from the results.
+  (An earlier version filtered the mileage range on the results themselves,
+  which silently excluded most trucks/SUVs — real used inventory routinely
+  exceeds 20k miles even lightly used.) There's no cheap automated
+  valuation API to compare against (see `docs/car-list.md`), so this
+  peer-comparison is a rough, free stand-in — a starting point for
+  eyeballing, not a verdict. All three tiers are stored and shown in the
+  web UI (filterable, with a colored badge per row); only Great/Good make
+  it into the printed digest so it stays focused on things actually worth
+  a look. Tunable in `src/autodev/deal-filter.ts`
+  (`DEFAULT_PRICE_TIER_OPTIONS`) if you want a different mileage cap or
+  thresholds.
 
 If the check itself fails (most likely an expired cookie), the error is
 printed to stderr and the process exits non-zero.
