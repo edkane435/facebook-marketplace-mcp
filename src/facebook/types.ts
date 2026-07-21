@@ -31,6 +31,10 @@ export interface MarketplaceListing {
   // Auto.dev-only: peer-comparison price classification (see
   // src/autodev/deal-filter.ts). Unset for Facebook listings.
   priceTier?: "great" | "good" | "bad";
+  // Auto.dev-only: formatted mileage-adjusted fair-price estimate (e.g.
+  // "$28,500"), only set when priceTier is "bad" and there was enough peer
+  // data to estimate one. Unset otherwise.
+  fairPrice?: string;
 }
 
 export interface MarketplaceListingDetail extends MarketplaceListing {

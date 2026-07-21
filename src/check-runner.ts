@@ -118,6 +118,12 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
           url: l.carfaxUrl ? `${l.url} | Carfax: ${l.carfaxUrl}` : l.url,
           isPending: false,
           priceTier: l.priceTier,
+          // Only worth showing for "bad" tier listings — great/good ones
+          // are already a good price, no target price to suggest.
+          fairPrice:
+            l.priceTier === "bad" && l.fairPriceEstimate != null
+              ? `$${l.fairPriceEstimate.toLocaleString()}`
+              : undefined,
         }));
 
         // Every classified listing (including "bad" tier) is stored so the

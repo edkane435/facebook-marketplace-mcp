@@ -18,6 +18,7 @@ const COLUMNS = [
   "url",
   "price_tier",
   "external_id",
+  "fair_price",
 ] as const;
 
 export interface FoundCar {
@@ -33,6 +34,10 @@ export interface FoundCar {
   // Facebook listing id or Auto.dev VIN. Blank for rows written before
   // this column existed.
   externalId: string;
+  // Mileage-adjusted fair-price estimate (formatted, e.g. "$28,500"), only
+  // set for "bad" tier rows with enough peer data. Blank otherwise, and for
+  // rows written before this column existed.
+  fairPrice: string;
 }
 
 function ensureStorageDir() {
@@ -107,6 +112,7 @@ export function appendFoundCars(
         listing.url,
         listing.priceTier ?? "",
         listing.id ?? "",
+        listing.fairPrice ?? "",
       ]
         .map(csvField)
         .join(",")
@@ -117,10 +123,21 @@ export function appendFoundCars(
 }
 
 function rowToCar(row: string): FoundCar {
-  const [monitor, title, price, location, seller, postedDate, dateFound, url, priceTier, externalId] =
-    parseCsvLine(row);
-  // priceTier/externalId are undefined for rows written before those
-  // columns existed.
+  const [
+    monitor,
+    title,
+    price,
+    location,
+    seller,
+    postedDate,
+    dateFound,
+    url,
+    priceTier,
+    externalId,
+    fairPrice,
+  ] = parseCsvLine(row);
+  // priceTier/externalId/fairPrice are undefined for rows written before
+  // those columns existed.
   return {
     monitor,
     title,
@@ -132,6 +149,7 @@ function rowToCar(row: string): FoundCar {
     url,
     priceTier: priceTier ?? "",
     externalId: externalId ?? "",
+    fairPrice: fairPrice ?? "",
   };
 }
 

@@ -135,15 +135,22 @@ needs a `.env` file (copy `.env.example`) with:
   checks still run fine on their own.
 
   Every Auto.dev listing gets classified into one of three price tiers by
-  comparing it to the median price of comparable (used, 0-60,000 mile,
-  priced) results in the same batch: **Great** (20%+ below median), **Good**
-  (8-20% below median), or **Bad** (anything else, including batches too
-  small to judge, or a listing outside that mileage/used comparison pool).
+  comparing it to a "fair price" derived from comparable (used, 0-60,000
+  mile, priced) results in the same batch: **Great** (20%+ below fair
+  price), **Good** (8-20% below), or **Bad** (anything else, including
+  batches too small to judge). The fair price itself is mileage-adjusted —
+  fit as a price-vs-mileage trend line across the peer group where there's
+  a usable one, falling back to a flat peer median otherwise — so a
+  higher-mileage listing is compared to what similar-but-higher-mileage
+  peers go for, not lumped in with low-mileage ones. For any "Bad" tier
+  listing, the web UI's **Fair price** column shows that estimate (blank
+  for Great/Good, since there's no target price worth suggesting on an
+  already-good deal) — a rough "here's about what this should cost instead."
   Every listing is always shown regardless of tier or mileage — the
   0-60,000 range only decides which listings count as peers for computing
-  the comparison median, it never hides a listing from the results.
-  (An earlier version filtered the mileage range on the results themselves,
-  which silently excluded most trucks/SUVs — real used inventory routinely
+  the fair price, it never hides a listing from the results. (An earlier
+  version filtered the mileage range on the results themselves, which
+  silently excluded most trucks/SUVs — real used inventory routinely
   exceeds 20k miles even lightly used.) There's no cheap automated
   valuation API to compare against (see `docs/car-list.md`), so this
   peer-comparison is a rough, free stand-in — a starting point for

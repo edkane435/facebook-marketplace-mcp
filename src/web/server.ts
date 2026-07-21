@@ -511,6 +511,7 @@ function renderPage(url: URL): string {
       <td>${escapeHtml(c.title)}</td>
       <td class="nowrap">${escapeHtml(c.price)}</td>
       <td>${renderTierBadge(c.priceTier)}</td>
+      <td class="nowrap">${c.priceTier === "bad" && c.fairPrice ? escapeHtml(c.fairPrice) : ""}</td>
       <td>${escapeHtml(c.location)}</td>
       <td>${escapeHtml(c.seller)}</td>
       <td>${renderLinks(c.url)}</td>
@@ -534,7 +535,7 @@ function renderPage(url: URL): string {
     cars.length === 0
       ? `<p class="empty">${allCars.length === 0 ? "Nothing found yet — check back after the next scheduled run." : "No results match these filters."}</p>`
       : `<div class="table-wrap"><table>
-    <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Rating</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
+    <thead><tr><th>Found</th><th>Search</th><th>Title</th><th>Price</th><th>Rating</th><th>Fair price</th><th>Location</th><th>Seller</th><th>Links</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`
   }`
