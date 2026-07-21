@@ -11,7 +11,7 @@ import {
 } from "./storage/autodev-monitors.js";
 import { searchAutoDevListings } from "./autodev/client.js";
 import { classifyByPrice } from "./autodev/deal-filter.js";
-import { appendFoundCars, clearFoundCars, pruneGoneListings } from "./storage/found-cars.js";
+import { appendFoundCars, clearFoundCars } from "./storage/found-cars.js";
 import { acquireLock, releaseLock } from "./utils/lock.js";
 import type { MarketplaceListing } from "./facebook/types.js";
 
@@ -95,20 +95,6 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
     );
 
     updateAutoDevMonitorSeenVins(monitor.name, allVins);
-
-    // Trust this run's results as the current truth for what's actually
-    // still for sale, and drop any previously-stored row for this monitor
-    // whose VIN isn't in them anymore (sold/delisted) — keeps cars.csv
-    // reflecting live inventory without ever needing a manual wipe. Skip
-    // entirely on a zero-result run: that's more likely a transient API
-    // hiccup than genuinely nothing being listed, and trusting it would
-    // wipe this monitor's whole history on a false signal.
-    if (allVins.length > 0) {
-      const removed = pruneGoneListings(monitor.name, new Set(allVins));
-      if (removed > 0) {
-        console.log(`${monitor.name}: removed ${removed} listing(s) no longer for sale.`);
-      }
-    }
 
     if (newListings.length > 0) {
       const asListings: MarketplaceListing[] = newListings.map((l) => ({

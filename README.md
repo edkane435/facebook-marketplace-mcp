@@ -163,12 +163,9 @@ services.
   vehicle type, price rating) as query params, and two buttons:
   - **Check now** (`POST /check-now`) — runs the check on demand instead
     of waiting for the daily schedule
-  - **Wipe everything & start over** (`POST /clear-all`) — wipes `cars.csv`
-    and Auto.dev seen-state entirely, including listings still for sale.
-    You shouldn't normally need this: every check already removes rows for
-    listings that are no longer for sale (see below), so this is only for
-    a full reset (e.g. after switching zip codes, or clearing out stale
-    pre-fix links from way back)
+  - **Clear all & start fresh** (`POST /clear-all`) — wipes `cars.csv` and
+    Auto.dev seen-state, so the next check re-reports every current match
+    with none of the old history (e.g. stale pre-fix links) left behind
   - **Manage searches** (collapsible section) — enter a make and hit
     "Search to add" (`GET /search-car`) to preview live Auto.dev listings
     before committing. Leave Model blank to browse every model currently
@@ -184,15 +181,6 @@ services.
     isn't set, the preview is skipped but adding still works. This only
     manages the Auto.dev side — Facebook search terms still come from
     `config/car-list.json`.
-  - **Automatic stale-listing cleanup** — every check trusts that run's
-    Auto.dev results as the current truth for what's actually still for
-    sale, and quietly removes any previously-found row for that monitor
-    whose listing isn't in them anymore (sold/delisted). Rows for listings
-    still for sale are untouched, and each row's "Found" date never
-    changes, so the table stays an accurate, dated view of current
-    inventory without ever needing a manual wipe. Skipped on a zero-result
-    run (more likely a transient API hiccup than genuinely no inventory)
-    to avoid a false-positive wipe of that monitor's whole history.
 - `GET /health` — plain `200 ok`, for platform health checks
 - `DAILY_CHECK_HOUR_UTC` / `DAILY_CHECK_MINUTE_UTC` (optional, default
   `13`/`0` — i.e. 9am Eastern during daylight saving) — when the internal
