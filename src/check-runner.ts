@@ -78,52 +78,68 @@ async function runAutoDevChecks(): Promise<Map<string, MarketplaceListing[]>> {
     return newByMonitor;
   }
 
+  const errors: string[] = [];
+
   for (const monitor of monitors) {
-    const listings = await searchAutoDevListings({ apiKey, ...monitor.params });
+    // One monitor's request failing (bad params, rate limit, transient
+    // API error) shouldn't silently abort every monitor after it in the
+    // list for the rest of this run — isolate per monitor and keep going.
+    try {
+      const listings = await searchAutoDevListings({ apiKey, ...monitor.params });
+      console.log(`${monitor.name}: ${listings.length} result(s) from Auto.dev.`);
 
-    // Mark every VIN seen this run — including "bad" tier ones — so a
-    // listing doesn't keep showing up as "noise" on every future run just
-    // because it's still listed. (Tradeoff: if it later drops in price
-    // into a better tier, it won't re-surface since it's already marked
-    // seen — same limitation the Facebook side has; no price-history
-    // tracking here yet.)
-    const allVins = listings.map((l) => l.vin).filter(Boolean);
+      // Mark every VIN seen this run — including "bad" tier ones — so a
+      // listing doesn't keep showing up as "noise" on every future run just
+      // because it's still listed. (Tradeoff: if it later drops in price
+      // into a better tier, it won't re-surface since it's already marked
+      // seen — same limitation the Facebook side has; no price-history
+      // tracking here yet.)
+      const allVins = listings.map((l) => l.vin).filter(Boolean);
 
-    const classified = classifyByPrice(listings);
-    const newListings = classified.filter(
-      (l) => l.vin && !monitor.seenVins.includes(l.vin)
-    );
+      const classified = classifyByPrice(listings);
+      const newListings = classified.filter(
+        (l) => l.vin && !monitor.seenVins.includes(l.vin)
+      );
 
-    updateAutoDevMonitorSeenVins(monitor.name, allVins);
+      updateAutoDevMonitorSeenVins(monitor.name, allVins);
 
-    if (newListings.length > 0) {
-      const asListings: MarketplaceListing[] = newListings.map((l) => ({
-        id: l.vin,
-        title: `${l.title} — ${l.mileage}`,
-        price: l.price,
-        location: l.location,
-        imageUrl: "",
-        sellerName: l.dealer,
-        postedDate: "",
-        // " | " not "\n" — CSV storage collapses embedded newlines to
-        // spaces (found-cars.ts's csvField), which would make the two URLs
-        // indistinguishable once read back. This delimiter survives intact.
-        url: l.carfaxUrl ? `${l.url} | Carfax: ${l.carfaxUrl}` : l.url,
-        isPending: false,
-        priceTier: l.priceTier,
-      }));
+      if (newListings.length > 0) {
+        const asListings: MarketplaceListing[] = newListings.map((l) => ({
+          id: l.vin,
+          title: `${l.title} — ${l.mileage}`,
+          price: l.price,
+          location: l.location,
+          imageUrl: "",
+          sellerName: l.dealer,
+          postedDate: "",
+          // " | " not "\n" — CSV storage collapses embedded newlines to
+          // spaces (found-cars.ts's csvField), which would make the two URLs
+          // indistinguishable once read back. This delimiter survives intact.
+          url: l.carfaxUrl ? `${l.url} | Carfax: ${l.carfaxUrl}` : l.url,
+          isPending: false,
+          priceTier: l.priceTier,
+        }));
 
-      // Every classified listing (including "bad" tier) is stored so the
-      // web UI shows the full picture — but only great/good tier entries
-      // are returned via newByMonitor, so the printed digest stays focused
-      // on things actually worth a look.
-      appendFoundCars(monitor.name, asListings);
+        // Every classified listing (including "bad" tier) is stored so the
+        // web UI shows the full picture — but only great/good tier entries
+        // are returned via newByMonitor, so the printed digest stays focused
+        // on things actually worth a look.
+        appendFoundCars(monitor.name, asListings);
 
-      const alertWorthy = asListings.filter((l) => l.priceTier !== "bad");
-      if (alertWorthy.length > 0) {
-        newByMonitor.set(monitor.name, alertWorthy);
+        const alertWorthy = asListings.filter((l) => l.priceTier !== "bad");
+        if (alertWorthy.length > 0) {
+          newByMonitor.set(monitor.name, alertWorthy);
+        }
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`${monitor.name}: Auto.dev request failed — ${message}`);
+      errors.push(`${monitor.name}: ${message}`);
     }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`${errors.length} Auto.dev monitor(s) failed: ${errors.join("; ")}`);
   }
 
   return newByMonitor;
